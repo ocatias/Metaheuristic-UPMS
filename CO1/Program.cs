@@ -10,11 +10,17 @@ namespace CO1
 
         static void Main()
         {
-            string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\real-life";
+            string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\real-life";
+            //List<string> realLifeDataFileNames = new List<string> { "A-fixed - Kopie.max" };
             List<string> realLifeDataFileNames = new List<string> { "A-fixed.max" };
 
-            //List<string> realLifeDataFileNames = new List<string> { "A.max", "A-fixed.max" , "B.max", "B-fixed.max", "C.max", "C-assigned.max", "C-assigned-x2.max",
-            //"C-assigned-x4.max", "C-assigned-x8.max", "C-assigned-x16.max", "C-x2.max", "C-x4.max", "C-x8.max", "C-x16.max"};
+
+            //string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation";
+            //List<string> realLifeDataFileNames = new List<string> { "p_13-80-80_1.max" };
+
+
+            ////List<string> realLifeDataFileNames = new List<string> { "A.max", "A-fixed.max" , "B.max", "B-fixed.max", "C.max", "C-assigned.max", "C-assigned-x2.max",
+            ////"C-assigned-x4.max", "C-assigned-x8.max", "C-assigned-x16.max", "C-x2.max", "C-x4.max", "C-x8.max", "C-x16.max"};
 
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
@@ -23,26 +29,30 @@ namespace CO1
             {
                 UPMS upms = new UPMS();
                 upms.setDoPrintInfo(true);
-                upms.loadData(path + "//" + filename);
-                upms.createModel();
+                upms.loadData(path + "\\" + filename);
+                upms.createModel(30);
             }
             stopwatch.Stop();
             Console.WriteLine("Time elapsed: {0} s", stopwatch.Elapsed);
+
+            //loadAllTrainingData();
         }
 
-        public void loadAllTrainingData()
+        public static void loadAllTrainingData()
         {
-            string[] filenames = Directory.GetFiles("C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\training");
+            string[] filenames = Directory.GetFiles("C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\training");
 
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
 
             foreach (string filename in filenames)
             {
+                Console.WriteLine("Processing " + filename);
+
                 UPMS upms = new UPMS();
                 upms.setDoPrintInfo(false);
                 upms.loadData(filename);
-                upms.createModel();
+                upms.createModel(1);
             }
             stopwatch.Stop();
             Console.WriteLine("Time elapsed: {0} s", stopwatch.Elapsed);
