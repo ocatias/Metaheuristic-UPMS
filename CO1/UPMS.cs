@@ -334,6 +334,7 @@ namespace CO1
                     //lhs[jobsInclDummy] += processingTimes[i - 1, m] * Y[i, m] + s[i, 0, m] * X[i, 0, m];
 
                 }
+                Console.WriteLine("hi");
                 solver.Add(lhsFinal <= Cmax);
             }
 
@@ -357,33 +358,30 @@ namespace CO1
             // [20] machines + [21] jobs + [22] 0 + [23] 1
             long numberOfConstraints = jobs*2 + jobs*machines*2 + (jobs + 1) * jobs + machines*2  + jobs + 1;
 
-            //if(solver.NumConstraints() != numberOfConstraints)
+            //if (solver.NumConstraints() != numberOfConstraints)
             //    throw new Exception("Number of constraints in model is wrong.");
 
 
-            //if (doPrintInfo)
-            //{
-                Console.WriteLine("Number of variables: " + solver.NumVariables());
-                //Console.WriteLine("Should be: " + numberOfVariables);
-
-                Console.WriteLine("Number of constraints: " + solver.NumConstraints());
-                //Console.WriteLine("Should be: " + numberOfConstraints);
-            //}    
-
-            //solver.SetNumThreads(2);
-
+            
+            Console.WriteLine("Number of variables: " + solver.NumVariables());
+            Console.WriteLine("Number of constraints: " + solver.NumConstraints());
+    
             solver.SetTimeLimit(1000 * 60 * minutes);
-
             Solver.ResultStatus resultStatus = solver.Solve();
 
             // Check that the problem has an optimal solution.
-            if (resultStatus != Solver.ResultStatus.OPTIMAL)
+            switch(resultStatus)
             {
-                Console.WriteLine("Solution is not optimal.");
-            }
-            else
-                Console.WriteLine("Solution is optimal.");
-
+                case (Solver.ResultStatus.OPTIMAL):
+                    Console.WriteLine("Solution is optimal.");
+                    break;
+                case (Solver.ResultStatus.NOT_SOLVED):
+                    Console.WriteLine("Not solved.");
+                    return;
+                default:
+                    Console.WriteLine("Solution is not optimal.");
+                    break;
+                }
 
             Console.WriteLine("Solution:");
 
@@ -392,71 +390,63 @@ namespace CO1
             for (int j = 1; j < jobsInclDummy; j++)
             {
                 tardiness += (long)T[j].SolutionValue();
-                Console.WriteLine("T_" + j + ": " + T[j].SolutionValue());
-                Console.WriteLine("C_" + j + ": " + C[j].SolutionValue());
-                Console.WriteLine("d_" + j + ": " + dueDates[j-1]);
-
             }
 
             string[] machinesOrder = new string[machines];
-            for(int m = 0; m < machines; m++)
+            for (int m = 0; m < machines; m++)
                 machinesOrder[m] = "0, ";
 
-            for(int i = 0; i < jobsInclDummy; i++)
+            for (int i = 0; i < jobsInclDummy; i++)
             {
-                for(int j = 0; j < jobsInclDummy; j++)
+                for (int j = 0; j < jobsInclDummy; j++)
                 {
-                    for(int m = 0; m < machines; m++)
+                    for (int m = 0; m < machines; m++)
                     {
                         if (X[i, j, m].SolutionValue() == 1)
                         {
-                            Console.WriteLine("X_" + i + "," + j + "," + m);
                             machinesOrder[m] += j.ToString() + ", ";
                         }
                     }
                 }
-            } 
+            }
+         
+
+            Console.WriteLine("Tardiness: " + tardiness);
+            Console.WriteLine("Makespan: " + Cmax.SolutionValue().ToString());
+
+            for (int m = 0; m < machines; m++)
+                Console.WriteLine(m + ": " + machinesOrder[m]);
 
             for (int j = 1; j < jobsInclDummy; j++)
             {
-                for(int m = 0; m < machines; m++)
+                Console.WriteLine("T_" + j + ": " + T[j].SolutionValue());
+                Console.WriteLine("C_" + j + ": " + C[j].SolutionValue());
+                Console.WriteLine("d_" + j + ": " + dueDates[j - 1]);
+
+            }
+
+            for (int j = 1; j < jobsInclDummy; j++)
+            {
+                for (int m = 0; m < machines; m++)
                 {
                     if (Y[j, m].SolutionValue() == 1)
                         Console.WriteLine("Y_" + j + "," + m);
                 }
             }
 
-
-            for (int m = 0; m < machines; m++)
-                Console.WriteLine(m + ": " + machinesOrder[m]);
-
-            Console.WriteLine("Tardiness: " + tardiness);
-            Console.WriteLine("Makespan: " + Cmax.SolutionValue().ToString());
-
-
-
-
-
-            // Constraint(28)
-            //for (int i = 0; i < jobsInclDummy; i++)
-            //{
-            //    for (int j = 1; j < jobsInclDummy; j++)
-            //    {
-            //        LinearExpr rhs = new LinearExpr();
-            //        LinearExpr rhs2 = new LinearExpr();
-
-            //        rhs = C[i];
-            //        for (int m = 0; m < machines; m++)
-            //        {
-            //            rhs += X[i, j, m] * (s[i, j, m] + processingTimes[j - 1, m]);
-            //            rhs2 += X[i, j, m];
-            //        }
-            //        rhs2 -= 1.0;
-            //        rhs += V * rhs2;
-
-            //        solver.Add(C[j] >= rhs);
-            //    }
-            //}
+            for (int i = 0; i < jobsInclDummy; i++)
+            {
+                for (int j = 0; j < jobsInclDummy; j++)
+                {
+                    for (int m = 0; m < machines; m++)
+                    {
+                        if (X[i, j, m].SolutionValue() == 1)
+                        {
+                            Console.WriteLine("X_" + i + "," + j + "," + m);
+                        }
+                    }
+                }
+            }
         }
     }
 }
