@@ -6,7 +6,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Google.OrTools" Version="8.0.8283" />
+    <None Remove="C:\Users\Fabian\.nuget\packages\google.ortools.runtime.win-x64\8.1.8484\build\net45\..\..\runtimes\win-x64\native\google-ortools-native.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="C:\Users\Fabian\.nuget\packages\google.ortools.runtime.win-x64\8.1.8484\build\net45\..\..\runtimes\win-x64\native\google-ortools-native.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.OrTools" Version="8.1.8487" />
   </ItemGroup>
 
 </Project>

@@ -148,7 +148,8 @@ namespace CO1
         public void createModel(int minutes)
         {
             int jobsInclDummy = this.jobs + 1;
-            Solver solver = Solver.CreateSolver("CBC");
+            LinearExpr a = new LinearExpr();
+            Solver solver = Solver.CreateSolver("gurobi");
 
 
             // Create variables for model and some constraints
@@ -171,7 +172,7 @@ namespace CO1
             {
                 C[j] = solver.MakeIntVar(0.0, double.PositiveInfinity, "C_" + j.ToString());
             }
-            
+
 
             // Constraint (22)
             // Be careful: in the model T(dummy job) is not defined
@@ -185,7 +186,7 @@ namespace CO1
 
 
             // ToDo = Probably need a bigger and not fixed value
-            int V = 1000000000;
+            int V = 1000000;
 
             // Be careful: in the model Y(dummy job, machine) is not defined
             Variable[,] Y = new Variable[jobsInclDummy, machines];
@@ -198,7 +199,6 @@ namespace CO1
                     Y[i, j] = solver.MakeIntVar(0.0, 1.0, "Y_" + i.ToString() + "," + j.ToString());
                 }
             }
-
 
             // ToDo: Add the lex and include Cmax
             // MINIMISE (13)
@@ -294,12 +294,10 @@ namespace CO1
                         r1 += X[i, j, m]*(s[i,j,m] + processingTimes[j-1,m]);
                     }
 
-
+                    //Console.WriteLine("C_" + j + " >= C_" + i);
                     solver.Add(C[j] >= C[i] + r1 + r2);
                 }
             }
-
-
 
             // Constraint (19)
             for (int m = 0; m < machines; m++)
@@ -314,28 +312,33 @@ namespace CO1
             // Constraint (20)
             for (int m = 0; m < machines; m++)
             {
-                //LinearExpr[] lhs = new LinearExpr[jobsInclDummy + 1];
+                LinearExpr[] lhs = new LinearExpr[jobsInclDummy + 1];
                 LinearExpr lhsFinal = new LinearExpr();
 
                 for (int i = 0; i < jobsInclDummy; i++)
                 {
-                    //lhs[i] = new LinearExpr();
+                    lhs[i] = new LinearExpr();
                     for (int j = 1; j < jobsInclDummy; j++)
                     {
                         if (i != j)
-                            lhsFinal += s[i, j, m] * X[i, j, m];
-                        //lhs[i] += s[i, j, m] * X[i, j, m];
-
+                        {
+                            //lhsFinal += s[i, j, m] * X[i, j, m];
+                            lhs[i] += s[i, j, m] * X[i, j, m];
+                        }
                     }
                 }
+                lhs[jobsInclDummy] = new LinearExpr();
                 for (int i = 1; i < jobsInclDummy; i++)
                 {
-                    lhsFinal += processingTimes[i - 1, m] * Y[i, m] + s[i, 0, m] * X[i, 0, m];
-                    //lhs[jobsInclDummy] += processingTimes[i - 1, m] * Y[i, m] + s[i, 0, m] * X[i, 0, m];
+                    //lhsFinal += processingTimes[i - 1, m] * Y[i, m] + s[i, 0, m] * X[i, 0, m];
+                    lhs[jobsInclDummy] += processingTimes[i - 1, m] * Y[i, m] + s[i, 0, m] * X[i, 0, m];
 
                 }
-                Console.WriteLine("hi");
-                solver.Add(lhsFinal <= Cmax);
+                LinearExpr b = new LinearExpr();
+                for (int o = 0; o < jobsInclDummy + 1; o++)
+                    b += lhs[o];
+
+                solver.Add(b <= Cmax);
             }
 
             // Constraint (21)
@@ -358,11 +361,14 @@ namespace CO1
             // [20] machines + [21] jobs + [22] 0 + [23] 1
             long numberOfConstraints = jobs*2 + jobs*machines*2 + (jobs + 1) * jobs + machines*2  + jobs + 1;
 
+            if (machines == 1)
+                numberOfConstraints -= jobs;
+
             //if (solver.NumConstraints() != numberOfConstraints)
             //    throw new Exception("Number of constraints in model is wrong.");
 
 
-            
+
             Console.WriteLine("Number of variables: " + solver.NumVariables());
             Console.WriteLine("Number of constraints: " + solver.NumConstraints());
     

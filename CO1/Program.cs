@@ -12,12 +12,14 @@ namespace CO1
         {
             Console.WriteLine("Start");
 
-            string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation";
-            //List<string> realLifeDataFileNames = new List<string> { "A-fixed - Kopie.max" };
-            //List<string> realLifeDataFileNames = new List<string> { "p_15-60-60_1.max", "p_18-80-80_2.max", "p_3-17-20_1.max", "s_1-3-100_1.max",  };
-            List<string> realLifeDataFileNames = new List<string> { "p_9-180-180_1.max" };
+            //string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\real-life";
+            //List<string> realLifeDataFileNames = new List<string> { "A.max" };
 
-           
+            string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation";
+            List<string> realLifeDataFileNames = new List<string> { "p_9-180-180_1.max", "t_3-12-200_1.max", "p_15-60-60_1.max", "p_18-80-80_2.max", "p_3-17-20_1.max", "s_1-3-100_1.max", };
+            //List<string> realLifeDataFileNames = new List<string> { "s_1-3-100_1.max" };
+
+
             Console.WriteLine("Working on these problems:");
             foreach (string filename in realLifeDataFileNames)
                 Console.Write(filename + "\t");
@@ -54,21 +56,21 @@ namespace CO1
                 Console.SetError(streamwriter);
 
                 UPMS upms = new UPMS();
-                //try
-                //{
+                try
+                {
                     upms.setDoPrintInfo(true);
                     upms.loadData(path + "\\" + filename);
-                    upms.createModel(1);
-                //}
-                //catch (StackOverflowException e)
-                //{
-                //    Console.WriteLine("StackOverflow");
-                //}
-                //catch (Exception e)
-                //{
-                //    Console.WriteLine(e.Message);
-                //}
-                
+                    upms.createModel(5);
+                }
+                catch (StackOverflowException e)
+                {
+                    Console.WriteLine("StackOverflow");
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                }
+
             }
             stopwatch.Stop();
             Console.WriteLine("Time elapsed: {0} s", stopwatch.Elapsed);
