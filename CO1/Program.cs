@@ -12,11 +12,11 @@ namespace CO1
         {
             Console.WriteLine("Start");
 
-            //string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\real-life";
-            //List<string> realLifeDataFileNames = new List<string> { "A.max" };
+            string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\real-life";
+            List<string> realLifeDataFileNames = new List<string> { "A-fixed - Kopie.max" };
 
-            string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation";
-            List<string> realLifeDataFileNames = new List<string> { "p_9-180-180_1.max", "t_3-12-200_1.max", "p_15-60-60_1.max", "p_18-80-80_2.max", "p_3-17-20_1.max", "s_1-3-100_1.max", };
+            //string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation";
+            //List<string> realLifeDataFileNames = new List<string> { "p_9-180-180_1.max", "t_3-12-200_1.max", "p_15-60-60_1.max", "p_18-80-80_2.max", "p_3-17-20_1.max", "s_1-3-100_1.max", };
             //List<string> realLifeDataFileNames = new List<string> { "s_1-3-100_1.max" };
 
 

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Google.OrTools.LinearSolver;
 
 namespace CO1
@@ -10,7 +11,6 @@ namespace CO1
         private bool doPrintDataLoad = false;
 
         public void setDoPrintInfo(bool doPrintInfo) { this.doPrintInfo = doPrintInfo; }
-
 
         private int machines;
         private int materialsAmount;
@@ -144,17 +144,8 @@ namespace CO1
             }
         }
 
-        // Data needs to be loaded before calling createModel()
-        public void createModel(int minutes)
+        private void initializeVariables(int jobsInclDummy, Solver solver, Variable[,,] X, Variable[] C, Variable[] T, Variable Cmax, Variable[,] Y)
         {
-            int jobsInclDummy = this.jobs + 1;
-            LinearExpr a = new LinearExpr();
-            Solver solver = Solver.CreateSolver("gurobi");
-
-
-            // Create variables for model and some constraints
-            Variable[,,] X = new Variable[jobsInclDummy, jobsInclDummy, machines];
-
             // CONSTRAINT (24)
             for (int i = 0; i < jobsInclDummy; i++)
             {
@@ -167,31 +158,19 @@ namespace CO1
                 }
             }
 
-            Variable[] C = new Variable[jobsInclDummy];
             for (int j = 0; j < jobsInclDummy; j++)
             {
                 C[j] = solver.MakeIntVar(0.0, double.PositiveInfinity, "C_" + j.ToString());
             }
 
-
             // Constraint (22)
             // Be careful: in the model T(dummy job) is not defined
-            Variable[] T = new Variable[jobsInclDummy];
             for (int i = 1; i < jobsInclDummy; i++)
             {
                 T[i] = solver.MakeIntVar(0.0, double.PositiveInfinity, "T_" + i.ToString());
             }
 
-            Variable Cmax = solver.MakeIntVar(0.0, double.PositiveInfinity, "Cmax");
-
-
-            // ToDo = Probably need a bigger and not fixed value
-            int V = 1000000;
-
-            // Be careful: in the model Y(dummy job, machine) is not defined
-            Variable[,] Y = new Variable[jobsInclDummy, machines];
-
-            // CONSTRAINT (25)
+            // Constraint (25)
             for (int i = 1; i < jobsInclDummy; i++)
             {
                 for (int j = 0; j < machines; j++)
@@ -199,26 +178,18 @@ namespace CO1
                     Y[i, j] = solver.MakeIntVar(0.0, 1.0, "Y_" + i.ToString() + "," + j.ToString());
                 }
             }
+        }
 
-            // ToDo: Add the lex and include Cmax
-            // MINIMISE (13)
-            LinearExpr functionToMinimise = T[1]*V;
-            for (int i = 2; i < jobsInclDummy; i++)
-            {
-                functionToMinimise += T[i]*V;
-            }
-            functionToMinimise += Cmax;
-
-            solver.Minimize(functionToMinimise);
-
-            // CONSTRAINT (26)
+        private void setConstraints(int jobsInclDummy, Solver solver, Variable[,,] X, Variable[] C, Variable[] T, Variable Cmax, Variable[,] Y, int V)
+        {
+            // Constraint (26)
             for (int j = 1; j < jobsInclDummy; j++)
             {
                 LinearExpr lhs = new LinearExpr();
-                for(int m = 0; m < machines; m++)
+                for (int m = 0; m < machines; m++)
                 {
-                    if (processingTimes[j-1,m] >= 0)
-                        lhs += Y[j,m];
+                    if (processingTimes[j - 1, m] >= 0)
+                        lhs += Y[j, m];
                 }
                 solver.Add(lhs == 1.0);
             }
@@ -236,7 +207,7 @@ namespace CO1
                         lhs += Y[j, m];
                     }
                 }
-                if(foundASingleForbiddenMachine)
+                if (foundASingleForbiddenMachine)
                     solver.Add(lhs == 0.0);
 
             }
@@ -244,12 +215,12 @@ namespace CO1
             // Constraint (16)
             for (int j = 1; j < jobsInclDummy; j++)
             {
-                for(int m = 0; m < machines; m++)
+                for (int m = 0; m < machines; m++)
                 {
                     LinearExpr lhs = new LinearExpr();
-                    for(int i = 0; i < jobsInclDummy; i++)
+                    for (int i = 0; i < jobsInclDummy; i++)
                     {
-                        if(i != j)
+                        if (i != j)
                         {
                             lhs += X[i, j, m];
                         }
@@ -264,9 +235,9 @@ namespace CO1
                 for (int m = 0; m < machines; m++)
                 {
                     LinearExpr lhs = new LinearExpr();
-                    for(int j = 0; j < jobsInclDummy; j++)
+                    for (int j = 0; j < jobsInclDummy; j++)
                     {
-                        if(i != j)
+                        if (i != j)
                         {
                             lhs += X[i, j, m];
                         }
@@ -281,7 +252,7 @@ namespace CO1
                 for (int j = 1; j < jobsInclDummy; j++)
                 {
                     LinearExpr r2 = new LinearExpr();
-                    for(int m = 0; m < machines; m++)
+                    for (int m = 0; m < machines; m++)
                     {
                         r2 += X[i, j, m];
                     }
@@ -289,12 +260,11 @@ namespace CO1
                     r2 *= V;
 
                     LinearExpr r1 = new LinearExpr();
-                    for(int m = 0; m < machines; m++)
+                    for (int m = 0; m < machines; m++)
                     {
-                        r1 += X[i, j, m]*(s[i,j,m] + processingTimes[j-1,m]);
+                        r1 += X[i, j, m] * (s[i, j, m] + processingTimes[j - 1, m]);
                     }
 
-                    //Console.WriteLine("C_" + j + " >= C_" + i);
                     solver.Add(C[j] >= C[i] + r1 + r2);
                 }
             }
@@ -322,7 +292,6 @@ namespace CO1
                     {
                         if (i != j)
                         {
-                            //lhsFinal += s[i, j, m] * X[i, j, m];
                             lhs[i] += s[i, j, m] * X[i, j, m];
                         }
                     }
@@ -330,7 +299,6 @@ namespace CO1
                 lhs[jobsInclDummy] = new LinearExpr();
                 for (int i = 1; i < jobsInclDummy; i++)
                 {
-                    //lhsFinal += processingTimes[i - 1, m] * Y[i, m] + s[i, 0, m] * X[i, 0, m];
                     lhs[jobsInclDummy] += processingTimes[i - 1, m] * Y[i, m] + s[i, 0, m] * X[i, 0, m];
 
                 }
@@ -349,47 +317,67 @@ namespace CO1
 
             // Constraint (23)
             solver.Add(C[0] == 0);
+        }
 
+        private void setFunctionToMinimize(int jobsInclDummy, Solver solver, Variable[,,] X, Variable[] C, Variable[] T, Variable Cmax, Variable[,] Y, int V)
+        {
+            // MINIMISE (13)
+            LinearExpr functionToMinimise = T[1] * V;
+            for (int i = 2; i < jobsInclDummy; i++)
+            {
+                functionToMinimise += T[i] * V;
+            }
+            functionToMinimise += Cmax;
+            solver.Minimize(functionToMinimise);
+        }
+
+        private void checkModelNumberOfConstraintsVariables(Solver solver)
+        {
             // |X_ijm| + |C_jm| + |T_j| + 1 (C_max) + |Y_jm|
             // Does not include V
-            long numberOfVariables = ((jobs + 1) * (jobs + 1) * machines) + (jobs+1) + jobs + 1 + jobs * machines;
+            long numberOfVariables = ((jobs + 1) * (jobs + 1) * machines) + (jobs + 1) + jobs + 1 + jobs * machines;
 
             if (solver.NumVariables() != numberOfVariables)
                 throw new Exception("Number of variables in model is wrong.");
 
             // [26] jobs +  [27] jobs + [16] jobs*machines + [17] jobs*machines + [28] (jobs + 1)*jobs + [19] machines 
             // [20] machines + [21] jobs + [22] 0 + [23] 1
-            long numberOfConstraints = jobs*2 + jobs*machines*2 + (jobs + 1) * jobs + machines*2  + jobs + 1;
+            long numberOfConstraints = jobs * 2 + jobs * machines * 2 + (jobs + 1) * jobs + machines * 2 + jobs + 1;
 
             if (machines == 1)
                 numberOfConstraints -= jobs;
 
+            // ToDo: Fix this
             //if (solver.NumConstraints() != numberOfConstraints)
             //    throw new Exception("Number of constraints in model is wrong.");
+        }
 
+        private int? getSuccessorJob(int predecessor, int machine, int jobsInclDummy, Variable[,,] X)
+        {
+            for(int j = 1; j < jobsInclDummy; j++)
+            {
+                if (X[predecessor, j, machine].SolutionValue() == 1)
+                    return j;
+            }
 
+            return null;
+        }
 
-            Console.WriteLine("Number of variables: " + solver.NumVariables());
-            Console.WriteLine("Number of constraints: " + solver.NumConstraints());
-    
-            solver.SetTimeLimit(1000 * 60 * minutes);
-            Solver.ResultStatus resultStatus = solver.Solve();
-
+        private (long, long) outputModelSolutions(Solver.ResultStatus resultStatus, int jobsInclDummy, Solver solver, Variable[,,] X, Variable[] C, Variable[] T, Variable Cmax, Variable[,] Y, List<int>[] machinesOrder)
+        {
             // Check that the problem has an optimal solution.
-            switch(resultStatus)
+            switch (resultStatus)
             {
                 case (Solver.ResultStatus.OPTIMAL):
                     Console.WriteLine("Solution is optimal.");
                     break;
                 case (Solver.ResultStatus.NOT_SOLVED):
                     Console.WriteLine("Not solved.");
-                    return;
+                    return (-1, -1);
                 default:
                     Console.WriteLine("Solution is not optimal.");
                     break;
-                }
-
-            Console.WriteLine("Solution:");
+            }
 
             long tardiness = 0;
 
@@ -398,31 +386,24 @@ namespace CO1
                 tardiness += (long)T[j].SolutionValue();
             }
 
-            string[] machinesOrder = new string[machines];
-            for (int m = 0; m < machines; m++)
-                machinesOrder[m] = "0, ";
-
-            for (int i = 0; i < jobsInclDummy; i++)
-            {
-                for (int j = 0; j < jobsInclDummy; j++)
-                {
-                    for (int m = 0; m < machines; m++)
-                    {
-                        if (X[i, j, m].SolutionValue() == 1)
-                        {
-                            machinesOrder[m] += j.ToString() + ", ";
-                        }
-                    }
-                }
-            }
-         
-
-            Console.WriteLine("Tardiness: " + tardiness);
+            Console.WriteLine("\nTardiness: " + tardiness);
             Console.WriteLine("Makespan: " + Cmax.SolutionValue().ToString());
 
+            Console.WriteLine("\nMachine order:");
             for (int m = 0; m < machines; m++)
-                Console.WriteLine(m + ": " + machinesOrder[m]);
+            {
+                Console.Write(m + ": ");
+                foreach (int succ in machinesOrder[m])
+                {
+                    Console.Write(succ);
+                    if (machinesOrder[m].IndexOf(succ) != machinesOrder[m].Count - 1)
+                        Console.Write(", ");
+                }
+                Console.Write("\n");
+            }
 
+
+            Console.WriteLine("\n\n\n\n\n\nVariable Assignment:");
             for (int j = 1; j < jobsInclDummy; j++)
             {
                 Console.WriteLine("T_" + j + ": " + T[j].SolutionValue());
@@ -453,6 +434,147 @@ namespace CO1
                     }
                 }
             }
+
+            return (tardiness, (long)Cmax.SolutionValue());
+        }
+
+        private List<int>[] calculateMachineAsssignmentFromModel(int jobsInclDummy, Variable[,,] X)
+        {
+            List<int>[] machinesOrder = new List<int>[machines];
+            for (int m = 0; m < machines; m++)
+                machinesOrder[m] = new List<int> { 0 };
+
+            for (int m = 0; m < machines; m++)
+            {
+                int? foo = getSuccessorJob(machinesOrder[m].Last(), m, jobsInclDummy, X);
+                while (foo != null)
+                {
+                    machinesOrder[m].Add((int)foo);
+                    foo = getSuccessorJob(machinesOrder[m].Last(), m, jobsInclDummy, X);
+                }
+
+                // Create the same format as the original outputs
+                machinesOrder[m].Remove(0);
+                for (int i = 0; i < machinesOrder[m].Count; i++)
+                    machinesOrder[m][i] = machinesOrder[m][i] - 1;
+            }
+
+            return machinesOrder;
+        }
+
+        private (long, long) calculateTardMakeSpanFromMachineAssignment(List<int>[] machinesOrder)
+        {
+            long tardiness = 0;
+            long maxMakeSpan = 0;
+            for (int m = 0; m < machines; m++)
+            {
+                long currMakeSpan = 0, currTimeOnMachine = 0;
+
+                if (machinesOrder[m].Count == 0)
+                    continue;
+
+                currMakeSpan += s[0, machinesOrder[m][0] + 1, m];
+                currMakeSpan += processingTimes[machinesOrder[m][0], m];
+
+
+                currTimeOnMachine += s[0, machinesOrder[m][0] + 1, m];
+                currTimeOnMachine += processingTimes[machinesOrder[m][0], m];
+                tardiness += (currTimeOnMachine - dueDates[machinesOrder[m][0]]) > 0 ? currTimeOnMachine - dueDates[machinesOrder[m][0]] : 0;
+
+
+                for (int i = 1; i < machinesOrder[m].Count; i++)
+                {
+                    currMakeSpan += s[machinesOrder[m][i], machinesOrder[m][i] + 1, m];
+                    currMakeSpan += processingTimes[machinesOrder[m][i], m];
+
+                    currTimeOnMachine += s[machinesOrder[m][i], machinesOrder[m][i] + 1, m];
+                    currTimeOnMachine += processingTimes[machinesOrder[m][i], m];
+                    tardiness += currTimeOnMachine - dueDates[machinesOrder[m][i]];
+                }
+
+                currMakeSpan += s[machinesOrder[m][machinesOrder[m].Count - 1]+1, 0, m];
+
+                if (currMakeSpan > maxMakeSpan)
+                    maxMakeSpan = currMakeSpan;
+            }
+            return (tardiness, maxMakeSpan);
+        }
+
+        private void verifyModelSolution(long tardinessFromModel, long makeSpanFromModel, List<int>[] machinesOrder)
+        {
+            // Verify if the assignment to machines is correct
+            for(int m = 0; m < machines; m++)
+            {
+                foreach (int job in machinesOrder[m])
+                    if (processingTimes[job, m] < 0)
+                        throw new Exception("Job assigned to not eligible machine.");
+            }
+
+            // Verify if each job is assigned exactly once
+            int[] jobs = new int[this.jobs];
+            Array.Clear(jobs, 0, jobs.Length);
+
+            for(int m = 0; m < machines; m++)
+            {
+                foreach (int job in machinesOrder[m])
+                    jobs[job] += 1;
+            }
+
+            for(int i = 0; i < this.jobs; i++)
+            {
+                if (jobs[i] != 1)
+                    throw new Exception("A job is not assigned or assigned multiple times");
+            }
+
+            // Verify tardiness and makespan
+            long tardiness, makeSpan;
+            (tardiness, makeSpan) = calculateTardMakeSpanFromMachineAssignment(machinesOrder);
+            if (tardiness != tardinessFromModel)
+                throw new Exception("Tardiness from model is contradictory");
+
+            if (makeSpan != makeSpanFromModel)
+                throw new Exception("Makespan from model is contradictory");
+
+            Console.WriteLine("Solution verified.");
+        }
+
+        // Data needs to be loaded before calling createModel()
+        public void createModel(int minutes)
+        {
+            int jobsInclDummy = this.jobs + 1;
+            Solver solver = Solver.CreateSolver("gurobi");
+
+            Variable[,,] X = new Variable[jobsInclDummy, jobsInclDummy, machines];
+            Variable[] C = new Variable[jobsInclDummy];
+            Variable[] T = new Variable[jobsInclDummy];
+            Variable Cmax = solver.MakeIntVar(0.0, double.PositiveInfinity, "Cmax");
+
+            // ToDo = Probably need a bigger and not fixed value
+            int V = 1000000;
+
+            // Be careful: in the model Y(dummy job, machine) is not defined
+            Variable[,] Y = new Variable[jobsInclDummy, machines];
+
+            initializeVariables(jobsInclDummy, solver, X, C, T, Cmax, Y);
+            setConstraints(jobsInclDummy, solver, X, C, T, Cmax, Y, V);
+            setFunctionToMinimize(jobsInclDummy, solver, X, C, T, Cmax, Y, V);
+
+            checkModelNumberOfConstraintsVariables(solver);
+
+            Console.WriteLine("Number of variables: " + solver.NumVariables());
+            Console.WriteLine("Number of constraints: " + solver.NumConstraints());
+    
+            solver.SetTimeLimit(1000 * 60 * minutes);
+            Solver.ResultStatus resultStatus = solver.Solve();
+
+            List<int>[] machinesOrder = calculateMachineAsssignmentFromModel(jobsInclDummy, X);
+            (long tardiness, long makespan) = outputModelSolutions(resultStatus, jobsInclDummy, solver, X, C, T, Cmax, Y, machinesOrder);
+            verifyModelSolution(tardiness, makespan, machinesOrder);
+
+
+            // Verify
+
+
         }
     }
 }
