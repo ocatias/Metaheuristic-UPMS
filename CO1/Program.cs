@@ -12,25 +12,17 @@ namespace CO1
         {
             Console.WriteLine("Start");
 
-            string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\real-life";
-            List<string> realLifeDataFileNames = new List<string> { "A-fixed - Kopie.max" };
+            //string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\real-life";
+            //List<string> realLifeDataFileNames = new List<string> { "A-fixed - Kopie.max" };
 
-            //string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation";
+            string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation";
             //List<string> realLifeDataFileNames = new List<string> { "p_9-180-180_1.max", "t_3-12-200_1.max", "p_15-60-60_1.max", "p_18-80-80_2.max", "p_3-17-20_1.max", "s_1-3-100_1.max", };
-            //List<string> realLifeDataFileNames = new List<string> { "s_1-3-100_1.max" };
-
+            List<string> realLifeDataFileNames = new List<string> { "t_3-12-200_1.max" };
 
             Console.WriteLine("Working on these problems:");
             foreach (string filename in realLifeDataFileNames)
                 Console.Write(filename + "\t");
 
-
-            //string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation";
-            //List<string> realLifeDataFileNames = new List<string> { "s_4-16-20_1.max" };
-
-
-            ////List<string> realLifeDataFileNames = new List<string> { "A.max", "A-fixed.max" , "B.max", "B-fixed.max", "C.max", "C-assigned.max", "C-assigned-x2.max",
-            ////"C-assigned-x4.max", "C-assigned-x8.max", "C-assigned-x16.max", "C-x2.max", "C-x4.max", "C-x8.max", "C-x16.max"};
 
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
@@ -60,11 +52,7 @@ namespace CO1
                 {
                     upms.setDoPrintInfo(true);
                     upms.loadData(path + "\\" + filename);
-                    upms.createModel(5);
-                }
-                catch (StackOverflowException e)
-                {
-                    Console.WriteLine("StackOverflow");
+                    upms.createModel(30);
                 }
                 catch (Exception e)
                 {

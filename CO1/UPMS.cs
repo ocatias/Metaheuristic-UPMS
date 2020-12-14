@@ -363,7 +363,18 @@ namespace CO1
             return null;
         }
 
-        private (long, long) outputModelSolutions(Solver.ResultStatus resultStatus, int jobsInclDummy, Solver solver, Variable[,,] X, Variable[] C, Variable[] T, Variable Cmax, Variable[,] Y, List<int>[] machinesOrder)
+        private (long, long) getTardinessMakeSpanFromModel(int jobsInclDummy, Variable[] T, Variable Cmax)
+        {
+            long tardiness = 0;
+
+            for (int j = 1; j < jobsInclDummy; j++)
+            {
+                tardiness += (long)T[j].SolutionValue();
+            }
+            return (tardiness, (long)Cmax.SolutionValue());
+        }
+
+        private void outputModelSolutions(Solver.ResultStatus resultStatus, long tardinessFromModel, int jobsInclDummy, Solver solver, Variable[,,] X, Variable[] C, Variable[] T, Variable Cmax, Variable[,] Y, List<int>[] machinesOrder)
         {
             // Check that the problem has an optimal solution.
             switch (resultStatus)
@@ -373,20 +384,13 @@ namespace CO1
                     break;
                 case (Solver.ResultStatus.NOT_SOLVED):
                     Console.WriteLine("Not solved.");
-                    return (-1, -1);
+                    return;
                 default:
                     Console.WriteLine("Solution is not optimal.");
                     break;
             }
 
-            long tardiness = 0;
-
-            for (int j = 1; j < jobsInclDummy; j++)
-            {
-                tardiness += (long)T[j].SolutionValue();
-            }
-
-            Console.WriteLine("\nTardiness: " + tardiness);
+            Console.WriteLine("\nTardiness: " + tardinessFromModel);
             Console.WriteLine("Makespan: " + Cmax.SolutionValue().ToString());
 
             Console.WriteLine("\nMachine order:");
@@ -434,8 +438,6 @@ namespace CO1
                     }
                 }
             }
-
-            return (tardiness, (long)Cmax.SolutionValue());
         }
 
         private List<int>[] calculateMachineAsssignmentFromModel(int jobsInclDummy, Variable[,,] X)
@@ -462,7 +464,16 @@ namespace CO1
             return machinesOrder;
         }
 
-        private (long, long) calculateTardMakeSpanFromMachineAssignment(List<int>[] machinesOrder)
+        // here: job 0 is a dummy job
+        private int getSetupTimeForJob(int jobBefore, int jobAfter, int machine)
+        {
+            int materialBefore = (jobBefore == 0) ? 0 : jobBefore;
+            int materialAfter = (jobAfter == 0) ? 0 : jobAfter;
+
+            return s[materialBefore, materialAfter, machine];
+        }
+
+        public (long, long) calculateTardMakeSpanFromMachineAssignment(List<int>[] machinesOrder, Variable[] T, Variable[] C)
         {
             long tardiness = 0;
             long maxMakeSpan = 0;
@@ -473,26 +484,46 @@ namespace CO1
                 if (machinesOrder[m].Count == 0)
                     continue;
 
-                currMakeSpan += s[0, machinesOrder[m][0] + 1, m];
+                currMakeSpan += getSetupTimeForJob(0, machinesOrder[m][0] + 1, m);
                 currMakeSpan += processingTimes[machinesOrder[m][0], m];
 
 
-                currTimeOnMachine += s[0, machinesOrder[m][0] + 1, m];
+                currTimeOnMachine += getSetupTimeForJob(0, machinesOrder[m][0] + 1, m);
                 currTimeOnMachine += processingTimes[machinesOrder[m][0], m];
                 tardiness += (currTimeOnMachine - dueDates[machinesOrder[m][0]]) > 0 ? currTimeOnMachine - dueDates[machinesOrder[m][0]] : 0;
 
+                long tOfCurrJob = (currTimeOnMachine - dueDates[machinesOrder[m][0]]) > 0 ? currTimeOnMachine - dueDates[machinesOrder[m][0]] : 0;
+
+                long tOnMachine = (long)T[machinesOrder[m][0] + 1].SolutionValue();
+                long mOnMachine = (long)C[machinesOrder[m][0] + 1].SolutionValue();
+
+                if (tOfCurrJob > tOnMachine)
+                    Console.WriteLine("tardi fail detected");
+
+                if (currTimeOnMachine > mOnMachine)
+                    Console.WriteLine("make fail detected");
 
                 for (int i = 1; i < machinesOrder[m].Count; i++)
                 {
-                    currMakeSpan += s[machinesOrder[m][i], machinesOrder[m][i] + 1, m];
+                    currMakeSpan += getSetupTimeForJob(machinesOrder[m][i-1] + 1, machinesOrder[m][i] + 1, m);
                     currMakeSpan += processingTimes[machinesOrder[m][i], m];
 
-                    currTimeOnMachine += s[machinesOrder[m][i], machinesOrder[m][i] + 1, m];
+                    currTimeOnMachine += getSetupTimeForJob(machinesOrder[m][i-1] + 1, machinesOrder[m][i] + 1, m);
                     currTimeOnMachine += processingTimes[machinesOrder[m][i], m];
-                    tardiness += currTimeOnMachine - dueDates[machinesOrder[m][i]];
+                    tardiness += (currTimeOnMachine - dueDates[machinesOrder[m][i]]) > 0 ? currTimeOnMachine - dueDates[machinesOrder[m][i]] : 0;
+                    tOfCurrJob = (currTimeOnMachine - dueDates[machinesOrder[m][i]]) > 0 ? currTimeOnMachine - dueDates[machinesOrder[m][i]] : 0;
+
+                    tOnMachine = (long)T[machinesOrder[m][i] + 1].SolutionValue();
+                    mOnMachine = (long)C[machinesOrder[m][i] + 1].SolutionValue();
+
+                    if (tOfCurrJob > tOnMachine)
+                        Console.WriteLine("tardi fail detected");
+
+                    if (currTimeOnMachine > mOnMachine)
+                        Console.WriteLine("make fail detected");
                 }
 
-                currMakeSpan += s[machinesOrder[m][machinesOrder[m].Count - 1]+1, 0, m];
+                currMakeSpan += getSetupTimeForJob(machinesOrder[m][machinesOrder[m].Count - 1] + 1, 0, m);
 
                 if (currMakeSpan > maxMakeSpan)
                     maxMakeSpan = currMakeSpan;
@@ -500,7 +531,7 @@ namespace CO1
             return (tardiness, maxMakeSpan);
         }
 
-        private void verifyModelSolution(long tardinessFromModel, long makeSpanFromModel, List<int>[] machinesOrder)
+        public void verifyModelSolution(long tardinessFromModel, long makeSpanFromModel, List<int>[] machinesOrder, Variable[] T, Variable[] C)
         {
             // Verify if the assignment to machines is correct
             for(int m = 0; m < machines; m++)
@@ -528,12 +559,17 @@ namespace CO1
 
             // Verify tardiness and makespan
             long tardiness, makeSpan;
-            (tardiness, makeSpan) = calculateTardMakeSpanFromMachineAssignment(machinesOrder);
-            if (tardiness != tardinessFromModel)
-                throw new Exception("Tardiness from model is contradictory");
+            (tardiness, makeSpan) = calculateTardMakeSpanFromMachineAssignment(machinesOrder, T, C);
 
-            if (makeSpan != makeSpanFromModel)
+            if (tardiness > tardinessFromModel)
+                throw new Exception("Tardiness from model is contradictory");
+            else if (tardiness < tardinessFromModel)
+                Console.WriteLine("Tardiness could be selected smaller.");
+
+            if (makeSpan > makeSpanFromModel)
                 throw new Exception("Makespan from model is contradictory");
+            else if (makeSpan < makeSpanFromModel)
+                Console.WriteLine("Makespan could be selected smaller.");
 
             Console.WriteLine("Solution verified.");
         }
@@ -541,6 +577,8 @@ namespace CO1
         // Data needs to be loaded before calling createModel()
         public void createModel(int minutes)
         {
+            Console.WriteLine("Solver runtime: " + minutes + " min");
+
             int jobsInclDummy = this.jobs + 1;
             Solver solver = Solver.CreateSolver("gurobi");
 
@@ -548,12 +586,10 @@ namespace CO1
             Variable[] C = new Variable[jobsInclDummy];
             Variable[] T = new Variable[jobsInclDummy];
             Variable Cmax = solver.MakeIntVar(0.0, double.PositiveInfinity, "Cmax");
+            Variable[,] Y = new Variable[jobsInclDummy, machines];
 
             // ToDo = Probably need a bigger and not fixed value
-            int V = 1000000;
-
-            // Be careful: in the model Y(dummy job, machine) is not defined
-            Variable[,] Y = new Variable[jobsInclDummy, machines];
+            int V = 100000;
 
             initializeVariables(jobsInclDummy, solver, X, C, T, Cmax, Y);
             setConstraints(jobsInclDummy, solver, X, C, T, Cmax, Y, V);
@@ -568,13 +604,15 @@ namespace CO1
             Solver.ResultStatus resultStatus = solver.Solve();
 
             List<int>[] machinesOrder = calculateMachineAsssignmentFromModel(jobsInclDummy, X);
-            (long tardiness, long makespan) = outputModelSolutions(resultStatus, jobsInclDummy, solver, X, C, T, Cmax, Y, machinesOrder);
-            verifyModelSolution(tardiness, makespan, machinesOrder);
-
+            (long tardiness, long makespan) = getTardinessMakeSpanFromModel(jobsInclDummy, T, Cmax);
 
             // Verify
+            verifyModelSolution(tardiness, makespan, machinesOrder, T, C);
 
+            // Output information
+            outputModelSolutions(resultStatus, tardiness, jobsInclDummy, solver, X, C, T, Cmax, Y, machinesOrder);
 
+            
         }
     }
 }
