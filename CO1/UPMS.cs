@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Google.OrTools.LinearSolver;
 
@@ -374,45 +375,31 @@ namespace CO1
             return (tardiness, (long)Cmax.SolutionValue());
         }
 
-        private void outputModelSolutions(Solver.ResultStatus resultStatus, long tardinessFromModel, int jobsInclDummy, Solver solver, Variable[,,] X, Variable[] C, Variable[] T, Variable Cmax, Variable[,] Y, List<int>[] machinesOrder)
+        private void outputModelSolutions(StreamWriter outputFileSolInfo, Solver.ResultStatus resultStatus, long tardinessFromModel, int jobsInclDummy, Solver solver, Variable[,,] X, Variable[] C, Variable[] T, Variable Cmax, Variable[,] Y, List<int>[] machinesOrder)
         {
             // Check that the problem has an optimal solution.
             switch (resultStatus)
             {
                 case (Solver.ResultStatus.OPTIMAL):
-                    Console.WriteLine("Solution is optimal.");
+                    outputFileSolInfo.WriteLine("Solution is optimal.");
                     break;
                 case (Solver.ResultStatus.NOT_SOLVED):
-                    Console.WriteLine("Not solved.");
+                    outputFileSolInfo.WriteLine("Not solved.");
                     return;
                 default:
-                    Console.WriteLine("Solution is not optimal.");
+                    outputFileSolInfo.WriteLine("Solution is not optimal.");
                     break;
             }
 
-            Console.WriteLine("\nTardiness: " + tardinessFromModel);
-            Console.WriteLine("Makespan: " + Cmax.SolutionValue().ToString());
+            outputFileSolInfo.WriteLine("\nTardiness: " + tardinessFromModel);
+            outputFileSolInfo.WriteLine("Makespan: " + Cmax.SolutionValue().ToString());
 
-            Console.WriteLine("\nMachine order:");
-            for (int m = 0; m < machines; m++)
-            {
-                Console.Write(m + ": ");
-                foreach (int succ in machinesOrder[m])
-                {
-                    Console.Write(succ);
-                    if (machinesOrder[m].IndexOf(succ) != machinesOrder[m].Count - 1)
-                        Console.Write(", ");
-                }
-                Console.Write("\n");
-            }
-
-
-            Console.WriteLine("\n\n\n\n\n\nVariable Assignment:");
+            outputFileSolInfo.WriteLine("\n\nVariable Assignment:");
             for (int j = 1; j < jobsInclDummy; j++)
             {
-                Console.WriteLine("T_" + j + ": " + T[j].SolutionValue());
-                Console.WriteLine("C_" + j + ": " + C[j].SolutionValue());
-                Console.WriteLine("d_" + j + ": " + dueDates[j - 1]);
+                outputFileSolInfo.WriteLine("T_" + j + ": " + T[j].SolutionValue());
+                outputFileSolInfo.WriteLine("C_" + j + ": " + C[j].SolutionValue());
+                outputFileSolInfo.WriteLine("d_" + j + ": " + dueDates[j - 1]);
 
             }
 
@@ -421,7 +408,7 @@ namespace CO1
                 for (int m = 0; m < machines; m++)
                 {
                     if (Y[j, m].SolutionValue() == 1)
-                        Console.WriteLine("Y_" + j + "," + m);
+                        outputFileSolInfo.WriteLine("Y_" + j + "," + m);
                 }
             }
 
@@ -433,7 +420,7 @@ namespace CO1
                     {
                         if (X[i, j, m].SolutionValue() == 1)
                         {
-                            Console.WriteLine("X_" + i + "," + j + "," + m);
+                            outputFileSolInfo.WriteLine("X_" + i + "," + j + "," + m);
                         }
                     }
                 }
@@ -510,7 +497,7 @@ namespace CO1
             return (tardiness, maxMakeSpan);
         }
 
-        public void verifyModelSolution(long tardinessFromModel, long makeSpanFromModel, List<int>[] machinesOrder)
+        public void verifyModelSolution(StreamWriter outputFile, long tardinessFromModel, long makeSpanFromModel, List<int>[] machinesOrder)
         {
             // Verify if the assignment to machines is correct
             for(int m = 0; m < machines; m++)
@@ -543,20 +530,22 @@ namespace CO1
             if (tardiness > tardinessFromModel)
                 throw new Exception("Tardiness from model is contradictory");
             else if (tardiness < tardinessFromModel)
-                Console.WriteLine("Tardiness could be selected smaller.");
+                outputFile.WriteLine("Tardiness could be selected smaller.");
 
             if (makeSpan > makeSpanFromModel)
                 throw new Exception("Makespan from model is contradictory");
             else if (makeSpan < makeSpanFromModel)
-                Console.WriteLine("Makespan could be selected smaller.");
+                outputFile.WriteLine("Makespan could be selected smaller.");
 
-            Console.WriteLine("Solution verified.");
+            outputFile.WriteLine("Solution verified.");
         }
 
         // Data needs to be loaded before calling createModel()
-        public void createModel(int seconds)
+        public void createModel(int seconds, string filepathSolInfo, string filepathSolMachineOrder)
         {
-            Console.WriteLine("Solver runtime: " + seconds + " sec");
+            StreamWriter outputFileSolInfo = new StreamWriter(filepathSolInfo);
+
+            outputFileSolInfo.WriteLine("Solver runtime: " + seconds + " sec");
 
             int jobsInclDummy = this.jobs + 1;
             Solver solver = Solver.CreateSolver("gurobi");
@@ -576,8 +565,8 @@ namespace CO1
 
             checkModelNumberOfConstraintsVariables(solver);
 
-            Console.WriteLine("Number of variables: " + solver.NumVariables());
-            Console.WriteLine("Number of constraints: " + solver.NumConstraints());
+            outputFileSolInfo.WriteLine("Number of variables: " + solver.NumVariables());
+            outputFileSolInfo.WriteLine("Number of constraints: " + solver.NumConstraints());
     
             solver.SetTimeLimit(1000 * seconds);
             Solver.ResultStatus resultStatus = solver.Solve();
@@ -586,12 +575,27 @@ namespace CO1
             (long tardiness, long makespan) = getTardinessMakeSpanFromModel(jobsInclDummy, T, Cmax);
 
             // Verify
-            verifyModelSolution(tardiness, makespan, machinesOrder);
+            verifyModelSolution(outputFileSolInfo, tardiness, makespan, machinesOrder);
 
             // Output information
-            outputModelSolutions(resultStatus, tardiness, jobsInclDummy, solver, X, C, T, Cmax, Y, machinesOrder);
+            outputModelSolutions(outputFileSolInfo, resultStatus, tardiness, jobsInclDummy, solver, X, C, T, Cmax, Y, machinesOrder);
 
-            
+
+            using(StreamWriter outputFileMachineOrder = new StreamWriter(filepathSolMachineOrder))
+            {
+                outputFileMachineOrder.WriteLine("[Schedules]");
+                for (int m = 0; m < machines; m++)
+                {
+                    outputFileMachineOrder.Write(m + ";");
+                    foreach (int succ in machinesOrder[m])
+                    {
+                        outputFileMachineOrder.Write(succ.ToString("000"));
+                        if (machinesOrder[m].IndexOf(succ) != machinesOrder[m].Count - 1)
+                            outputFileMachineOrder.Write(";");
+                    }
+                    outputFileMachineOrder.Write("\n");
+                }
+            }
         }
     }
 }

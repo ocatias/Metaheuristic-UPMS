@@ -32,27 +32,24 @@ namespace CO1
                 string pathToStoreOutput = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Experiments";
 
                 string currOutputFilename = filename;
-                string outputFilePath = pathToStoreOutput + "\\" + currOutputFilename + ".soln";
+                string outputFilePath = pathToStoreOutput + "\\" + currOutputFilename + ".soln.info";
+                string outputFilePath2 = pathToStoreOutput + "\\" + currOutputFilename + ".soln";
+
                 int i = 2;
                 if (File.Exists(outputFilePath))
                 {
-                    while (File.Exists(pathToStoreOutput + "\\" + currOutputFilename + i + ".soln"))
+                    while (File.Exists(pathToStoreOutput + "\\" + currOutputFilename + i + ".soln") || File.Exists(pathToStoreOutput + "\\" + currOutputFilename + i + ".soln.info"))
                         i++;
-                    outputFilePath = pathToStoreOutput + "\\" + currOutputFilename + i + ".soln";
+                    outputFilePath = pathToStoreOutput + "\\" + currOutputFilename + i + ".soln.info";
+                    outputFilePath2 = pathToStoreOutput + "\\" + currOutputFilename + i + ".soln";
                 }
-
-                FileStream filestream = new FileStream(outputFilePath, FileMode.Create);
-                var streamwriter = new StreamWriter(filestream);
-                streamwriter.AutoFlush = true;
-                Console.SetOut(streamwriter);
-                Console.SetError(streamwriter);
 
                 UPMS upms = new UPMS();
                 try
                 {
                     upms.setDoPrintInfo(true);
                     upms.loadData(path + "\\" + filename);
-                    upms.createModel(72);
+                    upms.createModel(72, outputFilePath, outputFilePath2);
                 }
                 catch (Exception e)
                 {
@@ -62,29 +59,6 @@ namespace CO1
             }
             stopwatch.Stop();
             Console.WriteLine("Time elapsed: {0} s", stopwatch.Elapsed);
-
-            //loadAllTrainingData();
         }
-
-        public static void loadAllTrainingData()
-        {
-            string[] filenames = Directory.GetFiles("C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\training");
-
-            Stopwatch stopwatch = new Stopwatch();
-            stopwatch.Start();
-
-            foreach (string filename in filenames)
-            {
-                Console.WriteLine("Processing " + filename);
-
-                UPMS upms = new UPMS();
-                upms.setDoPrintInfo(false);
-                upms.loadData(filename);
-                upms.createModel(1);
-            }
-            stopwatch.Stop();
-            Console.WriteLine("Time elapsed: {0} s", stopwatch.Elapsed);
-        }
-
     }
 }
