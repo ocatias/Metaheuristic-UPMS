@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-
+using System.Threading.Tasks;
 
 namespace Tests
 {
@@ -36,7 +36,7 @@ namespace Tests
                 }
             }
 
-            foreach (string filename in filenames)
+            Parallel.ForEach(filenames, (filename) =>
             {
                 string text = System.IO.File.ReadAllText(pathToSolution + "\\" + filename + ".soln");
                 List<string> parts = new List<string>(text.Split("\n"));
@@ -52,7 +52,6 @@ namespace Tests
                         machineOrder[i].Add(int.Parse(machines[j]));
                 }
 
-                UPMS upms = new UPMS();
                 var tempFN = filename.Split('_');
                 string tempFN2 = "";
                 for (int i = 0; i < tempFN.Length - 1; i++)
@@ -62,15 +61,15 @@ namespace Tests
                     tempFN2 += tempFN[i];
                 }
                 string fn = tempFN2.Replace("erez", "").Replace("tandard", "").Replace("ight", "") + ".max";
-                upms.loadData(pathToInstance + "\\" + fn);
+                ProblemInstance problem = new ProblemInstance(pathToInstance + "\\" + fn);
 
                 (long tardinessFromSolution, long makeSpanFromSolution) = getSolutionTardinessAndMakeSpan(pathToSolution + "\\" + filename + ".soln.info");
-                (long tardinessFromMachineOrder, long makeSpanFromMachineOrder) = upms.calculateTardMakeSpanFromMachineAssignment(machineOrder);
+                (long tardinessFromMachineOrder, long makeSpanFromMachineOrder) = Verifier.calculateTardMakeSpanFromMachineAssignment(problem, machineOrder);
                 if (tardinessFromMachineOrder != tardinessFromSolution)
                     throw new Exception("Tardiness is different");
                 if (makeSpanFromMachineOrder != makeSpanFromSolution)
                     throw new Exception("Makespan is different");
-            }
+            });
         }
 
         public (long, long) getSolutionTardinessAndMakeSpan(string path)
