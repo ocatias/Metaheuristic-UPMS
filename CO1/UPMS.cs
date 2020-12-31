@@ -473,7 +473,7 @@ namespace CO1
             return s[materialBefore, materialAfter, machine];
         }
 
-        public (long, long) calculateTardMakeSpanFromMachineAssignment(List<int>[] machinesOrder, Variable[] T, Variable[] C)
+        public (long, long) calculateTardMakeSpanFromMachineAssignment(List<int>[] machinesOrder)
         {
             long tardiness = 0;
             long maxMakeSpan = 0;
@@ -492,17 +492,6 @@ namespace CO1
                 currTimeOnMachine += processingTimes[machinesOrder[m][0], m];
                 tardiness += (currTimeOnMachine - dueDates[machinesOrder[m][0]]) > 0 ? currTimeOnMachine - dueDates[machinesOrder[m][0]] : 0;
 
-                long tOfCurrJob = (currTimeOnMachine - dueDates[machinesOrder[m][0]]) > 0 ? currTimeOnMachine - dueDates[machinesOrder[m][0]] : 0;
-
-                long tOnMachine = (long)T[machinesOrder[m][0] + 1].SolutionValue();
-                long mOnMachine = (long)C[machinesOrder[m][0] + 1].SolutionValue();
-
-                if (tOfCurrJob > tOnMachine)
-                    Console.WriteLine("tardi fail detected");
-
-                if (currTimeOnMachine > mOnMachine)
-                    Console.WriteLine("make fail detected");
-
                 for (int i = 1; i < machinesOrder[m].Count; i++)
                 {
                     currMakeSpan += getSetupTimeForJob(machinesOrder[m][i-1] + 1, machinesOrder[m][i] + 1, m);
@@ -511,16 +500,6 @@ namespace CO1
                     currTimeOnMachine += getSetupTimeForJob(machinesOrder[m][i-1] + 1, machinesOrder[m][i] + 1, m);
                     currTimeOnMachine += processingTimes[machinesOrder[m][i], m];
                     tardiness += (currTimeOnMachine - dueDates[machinesOrder[m][i]]) > 0 ? currTimeOnMachine - dueDates[machinesOrder[m][i]] : 0;
-                    tOfCurrJob = (currTimeOnMachine - dueDates[machinesOrder[m][i]]) > 0 ? currTimeOnMachine - dueDates[machinesOrder[m][i]] : 0;
-
-                    tOnMachine = (long)T[machinesOrder[m][i] + 1].SolutionValue();
-                    mOnMachine = (long)C[machinesOrder[m][i] + 1].SolutionValue();
-
-                    if (tOfCurrJob > tOnMachine)
-                        Console.WriteLine("tardi fail detected");
-
-                    if (currTimeOnMachine > mOnMachine)
-                        Console.WriteLine("make fail detected");
                 }
 
                 currMakeSpan += getSetupTimeForJob(machinesOrder[m][machinesOrder[m].Count - 1] + 1, 0, m);
@@ -531,7 +510,7 @@ namespace CO1
             return (tardiness, maxMakeSpan);
         }
 
-        public void verifyModelSolution(long tardinessFromModel, long makeSpanFromModel, List<int>[] machinesOrder, Variable[] T, Variable[] C)
+        public void verifyModelSolution(long tardinessFromModel, long makeSpanFromModel, List<int>[] machinesOrder)
         {
             // Verify if the assignment to machines is correct
             for(int m = 0; m < machines; m++)
@@ -559,7 +538,7 @@ namespace CO1
 
             // Verify tardiness and makespan
             long tardiness, makeSpan;
-            (tardiness, makeSpan) = calculateTardMakeSpanFromMachineAssignment(machinesOrder, T, C);
+            (tardiness, makeSpan) = calculateTardMakeSpanFromMachineAssignment(machinesOrder);
 
             if (tardiness > tardinessFromModel)
                 throw new Exception("Tardiness from model is contradictory");
@@ -575,9 +554,9 @@ namespace CO1
         }
 
         // Data needs to be loaded before calling createModel()
-        public void createModel(int minutes)
+        public void createModel(int seconds)
         {
-            Console.WriteLine("Solver runtime: " + minutes + " min");
+            Console.WriteLine("Solver runtime: " + seconds + " sec");
 
             int jobsInclDummy = this.jobs + 1;
             Solver solver = Solver.CreateSolver("gurobi");
@@ -600,14 +579,14 @@ namespace CO1
             Console.WriteLine("Number of variables: " + solver.NumVariables());
             Console.WriteLine("Number of constraints: " + solver.NumConstraints());
     
-            solver.SetTimeLimit(1000 * 60 * minutes);
+            solver.SetTimeLimit(1000 * seconds);
             Solver.ResultStatus resultStatus = solver.Solve();
 
             List<int>[] machinesOrder = calculateMachineAsssignmentFromModel(jobsInclDummy, X);
             (long tardiness, long makespan) = getTardinessMakeSpanFromModel(jobsInclDummy, T, Cmax);
 
             // Verify
-            verifyModelSolution(tardiness, makespan, machinesOrder, T, C);
+            verifyModelSolution(tardiness, makespan, machinesOrder);
 
             // Output information
             outputModelSolutions(resultStatus, tardiness, jobsInclDummy, solver, X, C, T, Cmax, Y, machinesOrder);

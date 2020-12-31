@@ -1,4 +1,4 @@
-using CO1;
+﻿using CO1;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -8,7 +8,7 @@ using System.Linq;
 
 namespace Tests
 {
-    public class SolutionVerificationTest
+    public class TardinessMakeSpanCorrectnessTest
     {
         [SetUp]
         public void Setup()
@@ -65,7 +65,11 @@ namespace Tests
                 upms.loadData(pathToInstance + "\\" + fn);
 
                 (long tardinessFromSolution, long makeSpanFromSolution) = getSolutionTardinessAndMakeSpan(pathToSolution + "\\" + filename + ".soln.info");
-                upms.verifyModelSolution(tardinessFromSolution, makeSpanFromSolution, machineOrder);
+                (long tardinessFromMachineOrder, long makeSpanFromMachineOrder) = upms.calculateTardMakeSpanFromMachineAssignment(machineOrder);
+                if (tardinessFromMachineOrder != tardinessFromSolution)
+                    throw new Exception("Tardiness is different");
+                if (makeSpanFromMachineOrder != makeSpanFromSolution)
+                    throw new Exception("Makespan is different");
             }
         }
 
