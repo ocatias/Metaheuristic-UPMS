@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 // A linear model of an UPMS instance
 namespace CO1
@@ -371,22 +370,7 @@ namespace CO1
             // Output information
             outputModelSolutions(outputFileSolInfo, resultStatus, tardiness, jobsInclDummy, solver, X, C, T, Cmax, Y, machinesOrder);
 
-
-            using (StreamWriter outputFileMachineOrder = new StreamWriter(filepathSolMachineOrder))
-            {
-                outputFileMachineOrder.WriteLine("[Schedules]");
-                for (int m = 0; m < problem.machines; m++)
-                {
-                    outputFileMachineOrder.Write(m + ";");
-                    foreach (int succ in machinesOrder[m])
-                    {
-                        outputFileMachineOrder.Write(succ.ToString(new string('0', (int)(Math.Log10(problem.jobs) + 1))));
-                        if (machinesOrder[m].IndexOf(succ) != machinesOrder[m].Count - 1)
-                            outputFileMachineOrder.Write(";");
-                    }
-                    outputFileMachineOrder.Write("\n");
-                }
-            }
+            ResultExport.storeMachineSchedule(filepathSolMachineOrder, problem, machinesOrder);
             outputFileSolInfo.Close();
         }
     }

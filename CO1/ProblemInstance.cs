@@ -151,5 +151,10 @@ namespace CO1
 
             return s[materialBefore, materialAfter, machine];
         }
+
+        public bool isFeasibleJobAssignment(int job, int machine)
+        {
+            return (processingTimes[job, machine] >= 0);
+        }
     }
 }
