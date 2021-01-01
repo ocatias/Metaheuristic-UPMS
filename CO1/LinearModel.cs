@@ -380,13 +380,14 @@ namespace CO1
                     outputFileMachineOrder.Write(m + ";");
                     foreach (int succ in machinesOrder[m])
                     {
-                        outputFileMachineOrder.Write(succ.ToString("000"));
+                        outputFileMachineOrder.Write(succ.ToString(new string('0', (int)(Math.Log10(problem.jobs) + 1))));
                         if (machinesOrder[m].IndexOf(succ) != machinesOrder[m].Count - 1)
                             outputFileMachineOrder.Write(";");
                     }
                     outputFileMachineOrder.Write("\n");
                 }
             }
+            outputFileSolInfo.Close();
         }
     }
 }

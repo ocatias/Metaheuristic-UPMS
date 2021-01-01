@@ -12,7 +12,7 @@ namespace CO1
         {
             string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation";
             //List<string> realLifeDataFileNames = new List<string> { "p_9-180-180_1.max", "t_3-12-200_1.max", "p_15-60-60_1.max", "p_18-80-80_2.max", "p_3-17-20_1.max", "s_1-3-100_1.max", };
-            List<string> realLifeDataFileNames = new List<string> { "t_3-12-200_1.max" };
+            List<string> realLifeDataFileNames = new List<string> { "p_3-17-20_1.max" };
 
             Console.WriteLine("Working on these problems:");
             foreach (string filename in realLifeDataFileNames)
@@ -43,7 +43,7 @@ namespace CO1
                 try
                 {
                     LinearModel linearModel = new LinearModel(problem);
-                    linearModel.createModel(72, outputFilePath, outputFilePath2);
+                    linearModel.createModel(30, outputFilePath, outputFilePath2);
                 }
                 catch (Exception e)
                 {
