@@ -43,22 +43,25 @@ namespace CO1
             while (DateTime.UtcNow.Subtract(startTime).TotalSeconds < runtimeInSeconds)
             {
                 List<int>[] tempSchedule;
+                bool selectTardyJob = rnd.Next(0, 2) == 0;
+                bool doInterMachineMove = rnd.Next(0, 2) == 0;
+
                 switch (rnd.Next() % 4)
                 {
                     case 0:
-                        tempSchedule = generateDoShiftMove(schedules, rnd);
+                        tempSchedule = generateDoShiftMove(schedules, rnd, selectTardyJob, doInterMachineMove);
                         break;
                     case 1:
-                        tempSchedule = generateDoSwapMove(schedules, rnd);
+                        tempSchedule = generateDoSwapMove(schedules, rnd, selectTardyJob, doInterMachineMove);
                         break;
                     case 2:
-                        tempSchedule = generateDoBlockShift(schedules, rnd);
+                        tempSchedule = generateDoBlockShift(schedules, rnd, selectTardyJob, doInterMachineMove);
                         break;
                     case 3:
-                        tempSchedule = generateDoBlockSwaps(schedules, rnd);
+                        tempSchedule = generateDoBlockSwaps(schedules, rnd, selectTardyJob, doInterMachineMove);
                         break;
                     default:
-                        tempSchedule = generateDoShiftMove(schedules, rnd);
+                        tempSchedule = generateDoShiftMove(schedules, rnd, selectTardyJob, doInterMachineMove);
                         break;
                 }
 
@@ -71,10 +74,10 @@ namespace CO1
 
                 if((tardinessTemp < tardiness || (tardinessTemp == tardiness && makespanTemp < makespan)) || (rnd.NextDouble() <= Math.Exp(-(Helpers.cost(tardinessTemp, makespanTemp)- Helpers.cost(tardiness, makespan))/temperature)))
                 {
-                    if (tardinessTemp > tardiness || (tardinessTemp == tardiness && makespanTemp > makespan))
-                        Console.Write("*");
-                    if(!(tardinessTemp == tardiness && makespanTemp == makespan))
-                        Console.WriteLine(String.Format("({0},{1}) -> ({2},{3})", tardiness, makespan, tardinessTemp, makespanTemp));
+                    //    if (tardinessTemp > tardiness || (tardinessTemp == tardiness && makespanTemp > makespan))
+                    //        Console.Write("*");
+                    //    if(!(tardinessTemp == tardiness && makespanTemp == makespan))
+                    //        Console.WriteLine(String.Format("({0},{1}) -> ({2},{3})", tardiness, makespan, tardinessTemp, makespanTemp));
                     schedules = tempSchedule;
                     (tardiness, makespan) = Verifier.calculateTardMakeSpanFromMachineAssignment(problem, schedules);
 
@@ -111,28 +114,56 @@ namespace CO1
                 Console.WriteLine(String.Format("Best Result: ({0},{1})", tardiness, makespan));
 
             }
-
+            Console.WriteLine(String.Format("Iterations: {0}", currentStep));
 
             Verifier.verifyModelSolution(problem, tardiness, makespan, schedules);
 
             exportResults(schedules, filepathMachineSchedule);
         }
 
-        public List<int>[] generateDoBlockSwaps(List<int>[] schedules, Random rnd)
+        public int findTardyJob(List<int>[] schedules, Random rnd, int machine)
+        {
+            int selectedJob = -1;
+            for(int i = schedules[machine].Count - 1; i > 0; i--)
+            {
+                if(Helpers.isJobTardy(problem, schedules, schedules[machine][i], machine))
+                {
+                    selectedJob = rnd.Next(0, i + 1);
+                    break;
+                }
+            }
+            if (selectedJob != -1)
+                return selectedJob;
+            return rnd.Next(0, schedules[machine].Count);
+        }
+
+        
+
+        public List<int>[] generateDoBlockSwaps(List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove)
         {
             int machineJob1, machineJob2, job1Position, job2Position, blockLength1, blockLength2;
             do
             {
                 machineJob1 = rnd.Next() % schedules.Length;
             } while (schedules[machineJob1].Count == 0);
-            do
+
+            if (doInterMachineMove)
             {
-                machineJob2 = rnd.Next() % schedules.Length;
-            } while (schedules[machineJob2].Count == 0);
+                do
+                {
+                    machineJob2 = rnd.Next() % schedules.Length;
+                } while (schedules[machineJob2].Count == 0);
+            }
+            else machineJob2 = machineJob1;
+            
 
             if (machineJob1 != machineJob2)
             {
-                job1Position = rnd.Next() % schedules[machineJob1].Count;
+                if (selectTardyJob)
+                    job1Position = findTardyJob(schedules, rnd, machineJob1);
+                else
+                    job1Position = rnd.Next() % schedules[machineJob1].Count;
+
                 job2Position = rnd.Next() % schedules[machineJob2].Count;
                 blockLength1 = rnd.Next() % (schedules[machineJob1].Count - job1Position);
                 blockLength2 = rnd.Next() % (schedules[machineJob2].Count - job2Position);
@@ -142,8 +173,15 @@ namespace CO1
                 if (schedules[machineJob1].Count == 1)
                     return null;
 
-                job1Position = rnd.Next() % (schedules[machineJob1].Count - 1);
-                job2Position = (rnd.Next() % (schedules[machineJob1].Count - job1Position)) + job1Position + 1;
+                if (selectTardyJob)
+                    job1Position = findTardyJob(schedules, rnd, machineJob1);
+                else
+                    job1Position = rnd.Next() % (schedules[machineJob1].Count - 1);
+
+                if (selectTardyJob && job1Position > 0)
+                    job2Position = rnd.Next(0, job1Position);
+                else
+                    job2Position = (rnd.Next() % (schedules[machineJob1].Count - job1Position)) + job1Position + 1;
 
                 if (job2Position - job1Position == 1)
                     blockLength1 = 1;
@@ -192,7 +230,7 @@ namespace CO1
 
         }
 
-        public List<int>[] generateDoBlockShift(List<int>[] schedules, Random rnd)
+        public List<int>[] generateDoBlockShift(List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove)
         {
             int machineJob1, machineJob2;
             do
@@ -200,14 +238,25 @@ namespace CO1
                 machineJob1 = rnd.Next() % schedules.Length;
             } while (schedules[machineJob1].Count == 0);
 
-            machineJob2 = rnd.Next() % schedules.Length;
+            if (doInterMachineMove)
+                machineJob2 = rnd.Next() % schedules.Length;
+            else machineJob2 = machineJob1;
 
-            int jobIndexToShift = rnd.Next() % schedules[machineJob1].Count;
+            int jobIndexToShift;
+            if (selectTardyJob)
+                jobIndexToShift = findTardyJob(schedules, rnd, machineJob1);
+            else
+                jobIndexToShift = rnd.Next() % schedules[machineJob1].Count;
+
             int blockLength = rnd.Next() % (schedules[machineJob1].Count - jobIndexToShift);
             int positionAtTargetMatchine = 0;
             if (schedules[machineJob2].Count > 0)
-                positionAtTargetMatchine = rnd.Next() % schedules[machineJob2].Count;
-
+            {
+                if (selectTardyJob && machineJob1 == machineJob2)
+                    positionAtTargetMatchine = rnd.Next(0, jobIndexToShift);
+                else
+                    positionAtTargetMatchine = rnd.Next() % schedules[machineJob2].Count;
+            }
             List<int>[] tempSchedule = Helpers.cloneSchedule(schedules);
             doBlockShift(tempSchedule, jobIndexToShift, machineJob1, machineJob2, positionAtTargetMatchine, blockLength);
             return tempSchedule;
@@ -228,7 +277,7 @@ namespace CO1
                 schedules[machineToShiftFrom].RemoveAt(positionAtTargetMachine);
         }
 
-        public List<int>[] generateDoSwapMove(List<int>[] schedules, Random rnd)
+        public List<int>[] generateDoSwapMove(List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove)
         {
             int machineJob1, machineJob2;
             do
@@ -236,13 +285,26 @@ namespace CO1
                 machineJob1 = rnd.Next() % schedules.Length;
             } while (schedules[machineJob1].Count == 0);
 
-            do
+            if (doInterMachineMove)
             {
-                machineJob2 = rnd.Next() % schedules.Length;
-            } while (schedules[machineJob2].Count == 0);
+                do
+                {
+                    machineJob2 = rnd.Next() % schedules.Length;
+                } while (schedules[machineJob2].Count == 0);
+            }
+            else machineJob2 = machineJob1;
 
-            int job1 = schedules[machineJob1][rnd.Next() % schedules[machineJob1].Count];
-            int job2 = schedules[machineJob2][rnd.Next() % schedules[machineJob2].Count];
+            int job1, job2;
+            if (selectTardyJob)
+                job1 = findTardyJob(schedules, rnd, machineJob1);
+            else
+                job1 = schedules[machineJob1][rnd.Next() % schedules[machineJob1].Count];
+
+            int job1Idx = schedules[machineJob1].FindIndex(j => j == job1);
+            if (job1Idx > 0 && machineJob1 == machineJob2 && selectTardyJob)
+                job2 = schedules[machineJob2][rnd.Next(0, job1Idx)];
+            else
+                job2 = schedules[machineJob2][rnd.Next() % schedules[machineJob2].Count];
 
             List<int>[] tempSchedule = Helpers.cloneSchedule(schedules);
             doSwapMove(tempSchedule, job1, job2, machineJob1, machineJob2);
@@ -260,20 +322,35 @@ namespace CO1
             schedules[machineJob2][idx2] = job1;
         }
 
-        public List<int>[] generateDoShiftMove(List<int>[] schedules, Random rnd)
+        public List<int>[] generateDoShiftMove(List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove)
         {
             int machineFrom = rnd.Next() % problem.machines;
-            int machineTo = rnd.Next() % problem.machines;
+            int machineTo;
+            if (!doInterMachineMove)
+                machineTo = machineFrom;
+            else
+                machineTo = rnd.Next() % problem.machines;
+
             if (schedules[machineFrom].Count == 0)
                 return null;
 
-            int jobToShift = schedules[machineFrom].ElementAt(rnd.Next() % (schedules[machineFrom].Count));
+            int jobToShift;
+            if (selectTardyJob)
+                jobToShift = findTardyJob(schedules, rnd, machineFrom);
+            else
+                jobToShift = schedules[machineFrom].ElementAt(rnd.Next() % (schedules[machineFrom].Count));
 
             int positionAtTargetMachine;
             if (schedules[machineTo].Count == 0)
                 positionAtTargetMachine = 0;
-            else positionAtTargetMachine = rnd.Next() % (schedules[machineTo].Count);
-
+            else
+            {
+                int jobToShiftIdx = schedules[machineFrom].FindIndex(s => s == jobToShift);
+                if (selectTardyJob && machineFrom == machineTo && jobToShiftIdx > 0)
+                    positionAtTargetMachine = rnd.Next(0, jobToShiftIdx);
+                else
+                    positionAtTargetMachine = rnd.Next() % (schedules[machineTo].Count);
+            }
             List<int>[] tempSchedule = Helpers.cloneSchedule(schedules);
 
             doShiftMove(tempSchedule, jobToShift, machineFrom, machineTo, positionAtTargetMachine);

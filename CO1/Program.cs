@@ -24,7 +24,7 @@ namespace CO1
                 (string fpInfo, string fpSchedule) = getFilepaths(filename);
 
                 SimulatedAnnealingSolver solver = new SimulatedAnnealingSolver(problem);
-                solver.solve(30, fpSchedule);
+                solver.solve(60, fpSchedule);
             }
         }
 

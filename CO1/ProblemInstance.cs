@@ -146,10 +146,7 @@ namespace CO1
         // here: job 0 is a dummy job
         public int getSetupTimeForJob(int jobBefore, int jobAfter, int machine)
         {
-            int materialBefore = (jobBefore == 0) ? 0 : jobBefore;
-            int materialAfter = (jobAfter == 0) ? 0 : jobAfter;
-
-            return s[materialBefore, materialAfter, machine];
+            return s[jobBefore, jobAfter, machine];
         }
 
         public bool isFeasibleJobAssignment(int job, int machine)
