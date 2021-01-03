@@ -15,16 +15,19 @@ namespace CO1
 
         public static void runSimulatedAnnealing()
         {
+            Console.WriteLine("Run Simulated Annealing Solver");
             string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation";
-            List<string> realLifeDataFileNames = new List<string> { "s_1-3-100_1.max" };
+            List<string> realLifeDataFileNames = new List<string> { "p_9-180-180_1.max", "t_3-12-200_1.max", "p_15-60-60_1.max", "p_18-80-80_2.max", "p_3-17-20_1.max", "s_1-3-100_1.max", };
+            //List<string> realLifeDataFileNames = new List<string> { "p_9-180-180_1.max" };
 
             foreach (string filename in realLifeDataFileNames)
             {
+                Console.WriteLine(String.Format("Current File: {0}", filename));
                 ProblemInstance problem = new ProblemInstance(path + "\\" + filename);
                 (string fpInfo, string fpSchedule) = getFilepaths(filename);
 
                 SimulatedAnnealingSolver solver = new SimulatedAnnealingSolver(problem);
-                solver.solve(60, fpSchedule);
+                solver.solve(60, fpInfo, fpSchedule);
             }
         }
 

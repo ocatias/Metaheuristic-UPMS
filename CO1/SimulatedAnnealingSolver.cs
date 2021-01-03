@@ -2,6 +2,7 @@
 using System.Text;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 
 namespace CO1
 {
@@ -16,7 +17,7 @@ namespace CO1
         }
 
         // Simmulated Annealing with Reheating
-        public void solve(int runtimeInSeconds, string filepathMachineSchedule)
+        public void solve(int runtimeInSeconds, string filepathResultInfo, string filepathMachineSchedule)
         {
             List<int>[] schedules = createInitialSchedules();
 
@@ -28,10 +29,15 @@ namespace CO1
             DateTime startTime = DateTime.UtcNow;
 
             int stepsBeforeCooling = 20339;
-            double coolingFactor = 0.98;
+            double coolingFactor = 0.93;
             double tMin = 6.73;
-            double tMax = 1000000;
+            double tMax = 2764.93;
             double temperature = tMax;
+
+            double probabilityInterMachineMove = 0.66;
+            double probabilityShiftMove = 0.84;
+            double probabilityBlockMove = 0.04;
+            double probabilityTardynessGuideance = 0.85;
 
             int howOftenHaveWeCooled = 0;
             int currentStep = 0;
@@ -43,53 +49,26 @@ namespace CO1
             while (DateTime.UtcNow.Subtract(startTime).TotalSeconds < runtimeInSeconds)
             {
                 List<int>[] tempSchedule;
-                bool selectTardyJob = rnd.Next(0, 2) == 0;
-                bool doInterMachineMove = rnd.Next(0, 2) == 0;
+                bool selectTardyJob = rnd.NextDouble() < probabilityTardynessGuideance;
+                bool doInterMachineMove = rnd.NextDouble() < probabilityInterMachineMove;
+                bool doBlockMove = rnd.NextDouble() < probabilityBlockMove;
+                bool doShiftMove = rnd.NextDouble() < probabilityShiftMove;
 
-                switch (rnd.Next() % 4)
+                if (doShiftMove)
                 {
-                    case 0:
-                        tempSchedule = generateDoShiftMove(schedules, rnd, selectTardyJob, doInterMachineMove);
-                        break;
-                    case 1:
-                        tempSchedule = generateDoSwapMove(schedules, rnd, selectTardyJob, doInterMachineMove);
-                        break;
-                    case 2:
+                    if (doBlockMove)
                         tempSchedule = generateDoBlockShift(schedules, rnd, selectTardyJob, doInterMachineMove);
-                        break;
-                    case 3:
-                        tempSchedule = generateDoBlockSwaps(schedules, rnd, selectTardyJob, doInterMachineMove);
-                        break;
-                    default:
+                    else
                         tempSchedule = generateDoShiftMove(schedules, rnd, selectTardyJob, doInterMachineMove);
-                        break;
                 }
-
-                if (tempSchedule == null)
-                    continue;
-
-                (long tardinessTemp, long makespanTemp) = Verifier.calculateTardMakeSpanFromMachineAssignment(problem, tempSchedule);
-
-                
-
-                if((tardinessTemp < tardiness || (tardinessTemp == tardiness && makespanTemp < makespan)) || (rnd.NextDouble() <= Math.Exp(-(Helpers.cost(tardinessTemp, makespanTemp)- Helpers.cost(tardiness, makespan))/temperature)))
+                else
                 {
-                    //    if (tardinessTemp > tardiness || (tardinessTemp == tardiness && makespanTemp > makespan))
-                    //        Console.Write("*");
-                    //    if(!(tardinessTemp == tardiness && makespanTemp == makespan))
-                    //        Console.WriteLine(String.Format("({0},{1}) -> ({2},{3})", tardiness, makespan, tardinessTemp, makespanTemp));
-                    schedules = tempSchedule;
-                    (tardiness, makespan) = Verifier.calculateTardMakeSpanFromMachineAssignment(problem, schedules);
-
-                    // Elitism
-                    if(tardiness < bestTardiness || (tardiness == bestTardiness && makespan < bestMakeSpan))
-                    {
-                        bestTardiness = tardiness;
-                        bestMakeSpan = makespan;
-                        bestSchedules = Helpers.cloneSchedule(schedules);
-                    }
+                    if (doBlockMove)
+                        tempSchedule = generateDoBlockSwaps(schedules, rnd, selectTardyJob, doInterMachineMove);
+                    else
+                        tempSchedule = generateDoSwapMove(schedules, rnd, selectTardyJob, doInterMachineMove);
                 }
-                
+
                 currentStep++;
                 if ((currentStep / stepsBeforeCooling) > howOftenHaveWeCooled)
                 {
@@ -101,27 +80,52 @@ namespace CO1
                         temperature = tMax;
                 }
 
-                
-                
+                if (tempSchedule == null)
+                    continue;
+
+                (long tardinessTemp, long makespanTemp) = Verifier.calculateTardMakeSpanFromMachineAssignment(problem, tempSchedule);
+
+                if((tardinessTemp < tardiness || (tardinessTemp == tardiness && makespanTemp < makespan)) || (rnd.NextDouble() <= Math.Exp(-(Helpers.cost(tardinessTemp, makespanTemp)- Helpers.cost(tardiness, makespan))/temperature)))
+                {
+                    schedules = tempSchedule;
+                    (tardiness, makespan) = Verifier.calculateTardMakeSpanFromMachineAssignment(problem, schedules);
+
+                    // Elitism
+                    if(tardiness < bestTardiness || (tardiness == bestTardiness && makespan < bestMakeSpan))
+                    {
+                        bestTardiness = tardiness;
+                        bestMakeSpan = makespan;
+                        bestSchedules = Helpers.cloneSchedule(schedules);
+                    }
+                }
+                       
             }
 
-            Console.WriteLine(String.Format("Last Result: ({0},{1})", tardiness, makespan));
             if (tardiness > bestTardiness || (tardiness == bestTardiness && makespan > bestMakeSpan))
             {
                 tardiness = bestTardiness;
                 makespan = bestMakeSpan;
                 schedules = Helpers.cloneSchedule(bestSchedules);
-                Console.WriteLine(String.Format("Best Result: ({0},{1})", tardiness, makespan));
-
             }
+            Console.WriteLine(String.Format("Best Result: ({0},{1})", tardiness, makespan));
+
+            Verifier.verifyModelSolution(problem, tardiness, makespan, schedules);
             Console.WriteLine(String.Format("Iterations: {0}", currentStep));
 
             Verifier.verifyModelSolution(problem, tardiness, makespan, schedules);
 
+            using (StreamWriter outputFile = new StreamWriter(filepathResultInfo))
+            {
+                outputFile.WriteLine(String.Format("Tardiness: {0}", tardiness));
+                outputFile.WriteLine(String.Format("Makespan: {0}", makespan));
+                outputFile.WriteLine(String.Format("Selected runtime: {0}s", runtimeInSeconds));
+                outputFile.WriteLine(String.Format("Number of iterations: {0}", currentStep));
+
+            }
             exportResults(schedules, filepathMachineSchedule);
         }
 
-        public int findTardyJob(List<int>[] schedules, Random rnd, int machine)
+        public int findTardyJobIdx(List<int>[] schedules, Random rnd, int machine)
         {
             int selectedJob = -1;
             for(int i = schedules[machine].Count - 1; i > 0; i--)
@@ -160,7 +164,7 @@ namespace CO1
             if (machineJob1 != machineJob2)
             {
                 if (selectTardyJob)
-                    job1Position = findTardyJob(schedules, rnd, machineJob1);
+                    job1Position = findTardyJobIdx(schedules, rnd, machineJob1);
                 else
                     job1Position = rnd.Next() % schedules[machineJob1].Count;
 
@@ -174,24 +178,28 @@ namespace CO1
                     return null;
 
                 if (selectTardyJob)
-                    job1Position = findTardyJob(schedules, rnd, machineJob1);
+                    job1Position = findTardyJobIdx(schedules, rnd, machineJob1);
                 else
                     job1Position = rnd.Next() % (schedules[machineJob1].Count - 1);
 
                 if (selectTardyJob && job1Position > 0)
                     job2Position = rnd.Next(0, job1Position);
                 else
-                    job2Position = (rnd.Next() % (schedules[machineJob1].Count - job1Position)) + job1Position + 1;
+                    job2Position = (rnd.Next() % (schedules[machineJob1].Count - job1Position)) + job1Position;
 
-                if (job2Position - job1Position == 1)
-                    blockLength1 = 1;
-                else
-                    blockLength1 = rnd.Next() % (job2Position - job1Position - 1) + 1;
+                if (job1Position == job2Position)
+                    return null;
 
-                if (job2Position == schedules[machineJob2].Count - 1)
-                    blockLength2 = 1;
+                if(job1Position < job2Position)
+                {
+                    blockLength1 = rnd.Next(0,job2Position - job1Position) + 1;
+                    blockLength2 = rnd.Next(0, schedules[machineJob2].Count - job2Position) + 1;
+                }
                 else
-                    blockLength2 = rnd.Next() % (schedules[machineJob2].Count - job2Position - 1) + 1;
+                {
+                    blockLength2 = rnd.Next(0, job1Position - job2Position) + 1;
+                    blockLength1 = rnd.Next(0, schedules[machineJob1].Count - job1Position) + 1;
+                }
             }
 
             List<int>[] tempSchedule = Helpers.cloneSchedule(schedules);
@@ -202,14 +210,14 @@ namespace CO1
         public void doBlockSwap(List<int>[] schedules, int job1Position, int job2Position, int machineJob1, int machineJob2, int blockLength1, int blockLength2)
         {
             for (int i = 0; i < blockLength1; i++)
-                if (problem.isFeasibleJobAssignment(schedules[machineJob1][job1Position + i], machineJob2))
+                if (!problem.isFeasibleJobAssignment(schedules[machineJob1][job1Position + i], machineJob2))
                     return;
 
             for (int i = 0; i < blockLength2; i++)
-                if (problem.isFeasibleJobAssignment(schedules[machineJob2][job2Position + i], machineJob1))
+                if (!problem.isFeasibleJobAssignment(schedules[machineJob2][job2Position + i], machineJob1))
                     return;
 
-            if (blockLength1 == 0 && blockLength2 == 0)
+            if (blockLength1 == 0 || blockLength2 == 0)
                 return;
 
             List<int> jobsFromMachine1 = new List<int>(); 
@@ -219,15 +227,38 @@ namespace CO1
                 jobsFromMachine1.Add(schedules[machineJob1][job1Position]);
                 schedules[machineJob1].RemoveAt(job1Position);
             }
+
             for (int i = 0; i < blockLength2; i++)
             {
-                jobsFromMachine2.Add(schedules[machineJob2][job2Position]);
-                schedules[machineJob2].RemoveAt(job2Position);
+                if (machineJob1 != machineJob2 || job2Position < job1Position)
+                {
+                    jobsFromMachine2.Add(schedules[machineJob2][job2Position]);
+                    schedules[machineJob2].RemoveAt(job2Position);
+                }
+                else
+                {
+                    jobsFromMachine2.Add(schedules[machineJob2][job2Position-blockLength1]);
+                    schedules[machineJob2].RemoveAt(job2Position-blockLength1);
+                }
             }
-
-            schedules[machineJob1].InsertRange(job1Position, jobsFromMachine2);
-            schedules[machineJob2].InsertRange(job2Position, jobsFromMachine1);
-
+            if (machineJob1 != machineJob2)
+            {
+                schedules[machineJob1].InsertRange(job1Position, jobsFromMachine2);
+                schedules[machineJob2].InsertRange(job2Position, jobsFromMachine1);
+            }
+            else
+            {
+                if(job1Position < job2Position)
+                {
+                    schedules[machineJob1].InsertRange(job1Position, jobsFromMachine2);
+                    schedules[machineJob2].InsertRange(job2Position - blockLength1 + blockLength2, jobsFromMachine1);
+                }
+                else
+                {
+                    schedules[machineJob2].InsertRange(job2Position, jobsFromMachine1);
+                    schedules[machineJob1].InsertRange(job1Position + blockLength1 - blockLength2, jobsFromMachine2);
+                }
+            }
         }
 
         public List<int>[] generateDoBlockShift(List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove)
@@ -244,19 +275,48 @@ namespace CO1
 
             int jobIndexToShift;
             if (selectTardyJob)
-                jobIndexToShift = findTardyJob(schedules, rnd, machineJob1);
+                jobIndexToShift = findTardyJobIdx(schedules, rnd, machineJob1);
             else
                 jobIndexToShift = rnd.Next() % schedules[machineJob1].Count;
 
-            int blockLength = rnd.Next() % (schedules[machineJob1].Count - jobIndexToShift);
             int positionAtTargetMatchine = 0;
             if (schedules[machineJob2].Count > 0)
             {
-                if (selectTardyJob && machineJob1 == machineJob2)
-                    positionAtTargetMatchine = rnd.Next(0, jobIndexToShift);
+                if (machineJob1 == machineJob2)
+                {
+                    if (schedules[machineJob2].Count == 1)
+                        return null;
+                    else if (selectTardyJob)
+                        positionAtTargetMatchine = rnd.Next(0, jobIndexToShift);
+                    else
+                    {
+                        positionAtTargetMatchine = jobIndexToShift;
+                        while(positionAtTargetMatchine == jobIndexToShift)
+                        {
+                            positionAtTargetMatchine = rnd.Next(0, schedules[machineJob2].Count);
+                        }
+                    }
+                    if (positionAtTargetMatchine == jobIndexToShift)
+                        return null;
+                    
+                }
                 else
-                    positionAtTargetMatchine = rnd.Next() % schedules[machineJob2].Count;
+                {
+                    positionAtTargetMatchine = rnd.Next(0, schedules[machineJob2].Count);
+                }
             }
+
+            int blockLength;
+            if (machineJob1 != machineJob2)
+                blockLength = rnd.Next() % (schedules[machineJob1].Count - jobIndexToShift);
+            else
+            {
+                if (positionAtTargetMatchine < jobIndexToShift)
+                    blockLength = rnd.Next() % (schedules[machineJob1].Count - jobIndexToShift) + 1;
+                else
+                    blockLength = rnd.Next() % (positionAtTargetMatchine - jobIndexToShift) + 1;
+            }
+
             List<int>[] tempSchedule = Helpers.cloneSchedule(schedules);
             doBlockShift(tempSchedule, jobIndexToShift, machineJob1, machineJob2, positionAtTargetMatchine, blockLength);
             return tempSchedule;
@@ -265,16 +325,27 @@ namespace CO1
         public void doBlockShift(List<int>[] schedules, int jobIndexToShift, int machineToShiftFrom, int machineToShiftTo, int positionAtTargetMachine, int blockLength)
         {
             for (int i = 0; i < blockLength; i++)
-                if (problem.isFeasibleJobAssignment(schedules[machineToShiftFrom][jobIndexToShift + i], machineToShiftTo))
+                if (!problem.isFeasibleJobAssignment(schedules[machineToShiftFrom][jobIndexToShift + i], machineToShiftTo))
                     return;
-            
-            for(int i = blockLength-1;  i >= 0; i--)
+
+            List<int> jobsToShift = new List<int>();
+            for (int i = 0; i < blockLength; i++)
             {
-                schedules[machineToShiftTo].Insert(positionAtTargetMachine, schedules[machineToShiftFrom][jobIndexToShift + i]);
+                jobsToShift.Add(schedules[machineToShiftFrom][jobIndexToShift]);
+                schedules[machineToShiftFrom].RemoveAt(jobIndexToShift);
             }
 
-            for (int i = 0; i < blockLength; i++)
-                schedules[machineToShiftFrom].RemoveAt(positionAtTargetMachine);
+            if(machineToShiftFrom != machineToShiftTo || jobIndexToShift > positionAtTargetMachine)
+            {
+                for (int i = blockLength - 1; i >= 0; i--)
+                    schedules[machineToShiftTo].Insert(positionAtTargetMachine, jobsToShift[i]);
+            }
+            else
+            {
+                if(jobIndexToShift < positionAtTargetMachine)
+                    for (int i = blockLength - 1; i >= 0; i--)
+                        schedules[machineToShiftTo].Insert(positionAtTargetMachine- blockLength, jobsToShift[i]);
+            }        
         }
 
         public List<int>[] generateDoSwapMove(List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove)
@@ -296,7 +367,7 @@ namespace CO1
 
             int job1, job2;
             if (selectTardyJob)
-                job1 = findTardyJob(schedules, rnd, machineJob1);
+                job1 = schedules[machineJob1][findTardyJobIdx(schedules, rnd, machineJob1)];
             else
                 job1 = schedules[machineJob1][rnd.Next() % schedules[machineJob1].Count];
 
@@ -336,9 +407,9 @@ namespace CO1
 
             int jobToShift;
             if (selectTardyJob)
-                jobToShift = findTardyJob(schedules, rnd, machineFrom);
+                jobToShift = schedules[machineFrom][findTardyJobIdx(schedules, rnd, machineFrom)];
             else
-                jobToShift = schedules[machineFrom].ElementAt(rnd.Next() % (schedules[machineFrom].Count));
+                jobToShift = schedules[machineFrom][rnd.Next(0,schedules[machineFrom].Count)];
 
             int positionAtTargetMachine;
             if (schedules[machineTo].Count == 0)
@@ -354,7 +425,7 @@ namespace CO1
             List<int>[] tempSchedule = Helpers.cloneSchedule(schedules);
 
             doShiftMove(tempSchedule, jobToShift, machineFrom, machineTo, positionAtTargetMachine);
-
+            
             return tempSchedule;
         }
 
@@ -362,7 +433,7 @@ namespace CO1
         public void doShiftMove(List<int>[] schedules, int jobToShift, int machineToShiftFrom, int machineToShiftTo, int positionAtTargetMachine)
         {
             // If the move is not feasibility presevering then cancel
-            if (problem.isFeasibleJobAssignment(jobToShift, machineToShiftTo))
+            if (problem.processingTimes[jobToShift, machineToShiftTo] < 0)
                 return;
 
             schedules[machineToShiftFrom].Remove(jobToShift);
@@ -403,7 +474,7 @@ namespace CO1
                 (int minCost, int selectedMachine) = getCostNumberOfJob(job, schedules, machineSpan);
                 machineSpan[selectedMachine] += minCost;
                 schedules[selectedMachine].Add(job);
-                jobs.RemoveAt(0);
+                jobs.Remove(job);
             }
 
             // Remove dummy jobs from start of schedule so it has the correct format
