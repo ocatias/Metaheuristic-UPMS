@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "CO1": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ValidationDataPath": "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation",
+        "OutputPath": "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Experiments",
+        "TrainingDataPath": "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\training"
+      }
+    }
+  }
+}
