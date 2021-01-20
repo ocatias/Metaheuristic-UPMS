@@ -48,5 +48,22 @@ namespace CO1
 
             throw new Exception("Job is not scheduled on this machine!");
         }
+
+        // Finds a random tardy job in the schedule
+        public static int findTardyJobIdx(ProblemInstance problem, List<int>[] schedules, Random rnd, int machine)
+        {
+            int selectedJob = -1;
+            for (int i = schedules[machine].Count - 1; i > 0; i--)
+            {
+                if (Helpers.isJobTardy(problem, schedules, schedules[machine][i], machine))
+                {
+                    selectedJob = rnd.Next(0, i + 1);
+                    break;
+                }
+            }
+            if (selectedJob != -1)
+                return selectedJob;
+            return rnd.Next(0, schedules[machine].Count);
+        }
     }
 }
