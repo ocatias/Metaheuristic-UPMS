@@ -8,8 +8,15 @@ namespace CO1
     {
         public static (long, long) calculateTardMakeSpanFromMachineAssignment(ProblemInstance problem, List<int>[] machinesOrder)
         {
+            (long tardiness, long makespan, int machine) = calculateTardMakeSpanMachineFromMachineAssignment(problem, machinesOrder);
+            return (tardiness, makespan);
+        }
+            public static (long, long, int) calculateTardMakeSpanMachineFromMachineAssignment(ProblemInstance problem, List<int>[] machinesOrder)
+        {
             long tardiness = 0;
             long maxMakeSpan = 0;
+            int makeSpanMachine = 0;
+
             for (int m = 0; m < problem.machines; m++)
             {
                 long currMakeSpan = 0, currTimeOnMachine = 0;
@@ -38,9 +45,12 @@ namespace CO1
                 currMakeSpan += problem.getSetupTimeForJob(machinesOrder[m][machinesOrder[m].Count - 1] + 1, 0, m);
 
                 if (currMakeSpan > maxMakeSpan)
+                {
+                    makeSpanMachine = m;
                     maxMakeSpan = currMakeSpan;
+                }
             }
-            return (tardiness, maxMakeSpan);
+            return (tardiness, maxMakeSpan, makeSpanMachine);
         }
 
         public static void verifyModelSolution(ProblemInstance problem, long tardinessFromModel, long makeSpanFromModel, List<int>[] machinesOrder)

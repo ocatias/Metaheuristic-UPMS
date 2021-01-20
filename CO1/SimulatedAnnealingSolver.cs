@@ -21,7 +21,7 @@ namespace CO1
         {
             List<int>[] schedules = createInitialSchedules();
 
-            (long tardiness, long makespan) = Verifier.calculateTardMakeSpanFromMachineAssignment(problem, schedules);
+            (long tardiness, long makespan, int makeSpanMachine) = Verifier.calculateTardMakeSpanMachineFromMachineAssignment(problem, schedules);
             Verifier.verifyModelSolution(problem, tardiness, makespan, schedules);
 
             Random rnd = new Random();
@@ -38,6 +38,7 @@ namespace CO1
             double probabilityShiftMove = 0.84;
             double probabilityBlockMove = 0.04;
             double probabilityTardynessGuideance = 0.85;
+            double probabilityMakeSpanGuideance = 0.71;
 
             int howOftenHaveWeCooled = 0;
             int currentStep = 0;
@@ -53,20 +54,21 @@ namespace CO1
                 bool doInterMachineMove = rnd.NextDouble() < probabilityInterMachineMove;
                 bool doBlockMove = rnd.NextDouble() < probabilityBlockMove;
                 bool doShiftMove = rnd.NextDouble() < probabilityShiftMove;
+                bool doMakeSpanGuideance = rnd.NextDouble() < probabilityMakeSpanGuideance;
 
                 if (doShiftMove)
                 {
                     if (doBlockMove)
-                        tempSchedule = generateDoBlockShift(schedules, rnd, selectTardyJob, doInterMachineMove);
+                        tempSchedule = generateDoBlockShift(schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine);
                     else
-                        tempSchedule = generateDoShiftMove(schedules, rnd, selectTardyJob, doInterMachineMove);
+                        tempSchedule = generateDoShiftMove(schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine);
                 }
                 else
                 {
                     if (doBlockMove)
-                        tempSchedule = generateDoBlockSwaps(schedules, rnd, selectTardyJob, doInterMachineMove);
+                        tempSchedule = generateDoBlockSwaps(schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine);
                     else
-                        tempSchedule = generateDoSwapMove(schedules, rnd, selectTardyJob, doInterMachineMove);
+                        tempSchedule = generateDoSwapMove(schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine);
                 }
 
                 currentStep++;
@@ -83,12 +85,12 @@ namespace CO1
                 if (tempSchedule == null)
                     continue;
 
-                (long tardinessTemp, long makespanTemp) = Verifier.calculateTardMakeSpanFromMachineAssignment(problem, tempSchedule);
+                (long tardinessTemp, long makespanTemp, int makespanMachineTemp) = Verifier.calculateTardMakeSpanMachineFromMachineAssignment(problem, tempSchedule);
 
                 if((tardinessTemp < tardiness || (tardinessTemp == tardiness && makespanTemp < makespan)) || (rnd.NextDouble() <= Math.Exp(-(Helpers.cost(tardinessTemp, makespanTemp)- Helpers.cost(tardiness, makespan))/temperature)))
                 {
                     schedules = tempSchedule;
-                    (tardiness, makespan) = Verifier.calculateTardMakeSpanFromMachineAssignment(problem, schedules);
+                    (tardiness, makespan, makeSpanMachine) = (tardinessTemp, makespanTemp, makespanMachineTemp);
 
                     // Elitism
                     if(tardiness < bestTardiness || (tardiness == bestTardiness && makespan < bestMakeSpan))
@@ -143,13 +145,19 @@ namespace CO1
 
         
 
-        public List<int>[] generateDoBlockSwaps(List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove)
+        public List<int>[] generateDoBlockSwaps(List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove, bool doMakeSpanGuideance, int makeSpanMachine)
         {
             int machineJob1, machineJob2, job1Position, job2Position, blockLength1, blockLength2;
-            do
+
+            if (doMakeSpanGuideance)
+                machineJob1 = makeSpanMachine;
+            else
             {
-                machineJob1 = rnd.Next() % schedules.Length;
-            } while (schedules[machineJob1].Count == 0);
+                do
+                {
+                    machineJob1 = rnd.Next() % schedules.Length;
+                } while (schedules[machineJob1].Count == 0);
+            }
 
             if (doInterMachineMove)
             {
@@ -261,13 +269,21 @@ namespace CO1
             }
         }
 
-        public List<int>[] generateDoBlockShift(List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove)
+        public List<int>[] generateDoBlockShift(List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove, bool doMakeSpanGuideance, int makeSpanMachine)
         {
             int machineJob1, machineJob2;
-            do
+            if(doMakeSpanGuideance)
             {
-                machineJob1 = rnd.Next() % schedules.Length;
-            } while (schedules[machineJob1].Count == 0);
+                machineJob1 = makeSpanMachine;
+            }
+            else
+            {
+                do
+                {
+                    machineJob1 = rnd.Next() % schedules.Length;
+                } while (schedules[machineJob1].Count == 0);
+            }
+            
 
             if (doInterMachineMove)
                 machineJob2 = rnd.Next() % schedules.Length;
@@ -348,13 +364,18 @@ namespace CO1
             }        
         }
 
-        public List<int>[] generateDoSwapMove(List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove)
+        public List<int>[] generateDoSwapMove(List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove, bool doMakeSpanGuideance, int makeSpanMachine)
         {
             int machineJob1, machineJob2;
-            do
+            if (doMakeSpanGuideance)
+                machineJob1 = makeSpanMachine;
+            else
             {
-                machineJob1 = rnd.Next() % schedules.Length;
-            } while (schedules[machineJob1].Count == 0);
+                do
+                {
+                    machineJob1 = rnd.Next() % schedules.Length;
+                } while (schedules[machineJob1].Count == 0);
+            }
 
             if (doInterMachineMove)
             {
@@ -393,9 +414,15 @@ namespace CO1
             schedules[machineJob2][idx2] = job1;
         }
 
-        public List<int>[] generateDoShiftMove(List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove)
+        public List<int>[] generateDoShiftMove(List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove, bool doMakeSpanGuideance, int makeSpanMachine)
         {
-            int machineFrom = rnd.Next() % problem.machines;
+
+            int machineFrom;
+            if (doMakeSpanGuideance)
+                machineFrom = makeSpanMachine;
+            else
+                machineFrom = rnd.Next() % problem.machines;
+
             int machineTo;
             if (!doInterMachineMove)
                 machineTo = machineFrom;

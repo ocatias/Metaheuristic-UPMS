@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace CO1
 {
@@ -10,30 +12,45 @@ namespace CO1
 
         static void Main()
         {
-            runSimulatedAnnealing();
+            //string pathValidation = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation";
+            string pathTraining = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\training";
+            //List<string> realLifeDataFileNames = new List<string> { "p_9-180-180_1.max", "t_3-12-200_1.max", "p_15-60-60_1.max", "p_18-80-80_2.max", "p_3-17-20_1.max", "s_1-3-100_1.max", };
+
+            List<string> allFilesInDirectory = (List<string>)Directory.GetFiles(pathTraining).ToList().Where(x => x.Contains(".max")).ToList();
+            for (int i = 0; i < allFilesInDirectory.Count; i++)
+                allFilesInDirectory[i] = allFilesInDirectory[i].Split("\\").Last();
+
+            allFilesInDirectory = allFilesInDirectory.OrderBy(x => Guid.NewGuid()).ToList();
+
+            runSimulatedAnnealing(10, 1, pathTraining, allFilesInDirectory.Take(30).ToList(), "TryASmallSubset");
         }
 
-        public static void runSimulatedAnnealing()
+        public static void runSimulatedAnnealing(int secondsPerRun, int repeats, string path, List<string> filenames, string experimentName)
         {
             Console.WriteLine("Run Simulated Annealing Solver");
-            string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation";
-            List<string> realLifeDataFileNames = new List<string> { "p_9-180-180_1.max", "t_3-12-200_1.max", "p_15-60-60_1.max", "p_18-80-80_2.max", "p_3-17-20_1.max", "s_1-3-100_1.max", };
-            //List<string> realLifeDataFileNames = new List<string> { "p_9-180-180_1.max" };
 
-            foreach (string filename in realLifeDataFileNames)
+            for (int i = 0; i < repeats; i++)
             {
-                Console.WriteLine(String.Format("Current File: {0}", filename));
-                ProblemInstance problem = new ProblemInstance(path + "\\" + filename);
-                (string fpInfo, string fpSchedule) = getFilepaths(filename);
+                //Parallel.ForEach(filenames, (filename) =>
+                //{
+                foreach (string filename in filenames)
+                {
+                    Console.WriteLine(String.Format("Current File: {0}", filename));
+                    ProblemInstance problem = new ProblemInstance(path + "\\" + filename);
+                    (string fpInfo, string fpSchedule) = getFilepaths(filename, experimentName);
 
-                SimulatedAnnealingSolver solver = new SimulatedAnnealingSolver(problem);
-                solver.solve(60, fpInfo, fpSchedule);
+                    SimulatedAnnealingSolver solver = new SimulatedAnnealingSolver(problem);
+                    solver.solve(secondsPerRun, fpInfo, fpSchedule);
+                }
             }
         }
 
-        public static (string fpInfo, string fpSchedule) getFilepaths(string filename)
+        public static (string fpInfo, string fpSchedule) getFilepaths(string filename, string experimentName)
         {
-            string pathToStoreOutput = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Experiments";
+            string pathToStoreOutput = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Experiments" + "\\" + experimentName;
+
+            if (!Directory.Exists(pathToStoreOutput))
+                Directory.CreateDirectory(pathToStoreOutput);
 
             string currOutputFilename = filename;
             string outputFilePath = pathToStoreOutput + "\\" + currOutputFilename + ".soln.info";
@@ -51,7 +68,7 @@ namespace CO1
         }
 
 
-        public static void runLinearModels()
+        public static void runLinearModels(string experimentName)
         {
             string path = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation";
             //List<string> realLifeDataFileNames = new List<string> { "p_9-180-180_1.max", "t_3-12-200_1.max", "p_15-60-60_1.max", "p_18-80-80_2.max", "p_3-17-20_1.max", "s_1-3-100_1.max", };
@@ -63,10 +80,10 @@ namespace CO1
 
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
-
+            
             foreach (string filename in realLifeDataFileNames)
             {
-                (string outputFilePath, string outputFilePath2) = getFilepaths(filename);
+                (string outputFilePath, string outputFilePath2) = getFilepaths(filename, experimentName);
                 ProblemInstance problem = new ProblemInstance(path + "\\" + filename);
                 try
                 {
