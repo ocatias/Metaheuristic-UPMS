@@ -16,6 +16,7 @@ namespace CO1
         double tMin = 6.73;
         double tMax = 2764.93;
         double temperature;
+        int maxStepsSinceLastImprovement = 10000; //Afterwards we will try and solve a subproblem explicitly
 
         double probabilityInterMachineMove = 0.66;
         double probabilityShiftMove = 0.84;
@@ -34,8 +35,10 @@ namespace CO1
         {
             List<int>[] schedules = createInitialSchedules();
 
-            (long tardiness, long makespan, int makeSpanMachine) = Verifier.calculateTardMakeSpanMachineFromMachineAssignment(problem, schedules);
-            Verifier.verifyModelSolution(problem, tardiness, makespan, schedules);
+            SolutionCost cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
+
+            //(long tardiness, long makespan, int makeSpanMachine) = Verifier.calculateTardMakeSpanMachineFromMachineAssignment(problem, schedules);
+            Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
 
             Random rnd = new Random();
 
@@ -43,16 +46,17 @@ namespace CO1
 
             int howOftenHaveWeCooled = 0;
             int currentStep = 0;
+            int stepsSinceLastImprovement = 0;
 
-            long bestTardiness = tardiness;
-            long bestMakeSpan = makespan;
+
+            SolutionCost lowestCost = new SolutionCost(cost);
             List<int>[] bestSchedules = Helpers.cloneSchedule(schedules);
 
             temperature = tMax;
 
             while (DateTime.UtcNow.Subtract(startTime).TotalSeconds < runtimeInSeconds)
             {
-                List<int>[] tempSchedule = SimulatedAnnealingMoves.doSAStep(problem, rnd, schedules, makeSpanMachine,
+                (List<int>[] tempSchedule, List<int> changedMachines) = SimulatedAnnealingMoves.doSAStep(problem, rnd, schedules, cost.makeSpanMachine,
                     probabilityTardynessGuideance, probabilityInterMachineMove, probabilityBlockMove, probabilityShiftMove, probabilityMakeSpanGuideance);
 
                 currentStep++;
@@ -69,43 +73,41 @@ namespace CO1
                 if (tempSchedule == null)
                     continue;
 
-                (long tardinessTemp, long makespanTemp, int makespanMachineTemp) = Verifier.calculateTardMakeSpanMachineFromMachineAssignment(problem, tempSchedule);
+                SolutionCost costTemp = new SolutionCost(cost);
+                costTemp = Verifier.updateTardMakeSpanMachineFromMachineAssignment(problem, tempSchedule, costTemp, changedMachines);
 
-                if((tardinessTemp < tardiness || (tardinessTemp == tardiness && makespanTemp < makespan)) || (rnd.NextDouble() <= Math.Exp(-(Helpers.cost(tardinessTemp, makespanTemp)- Helpers.cost(tardiness, makespan))/temperature)))
+                if((costTemp.tardiness < cost.tardiness || (costTemp.tardiness == cost.tardiness && costTemp.makeSpan < cost.makeSpan)) || 
+                    (rnd.NextDouble() <= Math.Exp(-(Helpers.cost(costTemp.tardiness, costTemp.makeSpan) - Helpers.cost(cost.tardiness, cost.makeSpan))/temperature)))
                 {
                     schedules = tempSchedule;
-                    (tardiness, makespan, makeSpanMachine) = (tardinessTemp, makespanTemp, makespanMachineTemp);
+                    cost = costTemp;
 
                     // Elitism
-                    if(tardiness < bestTardiness || (tardiness == bestTardiness && makespan < bestMakeSpan))
+                    if(cost.isBetterThan(lowestCost))
                     {
-                        bestTardiness = tardiness;
-                        bestMakeSpan = makespan;
+                        lowestCost = new SolutionCost(cost);
                         bestSchedules = Helpers.cloneSchedule(schedules);
                     }
                 }
                        
             }
 
-            if (tardiness > bestTardiness || (tardiness == bestTardiness && makespan > bestMakeSpan))
+            if (lowestCost.isBetterThan(cost))
             {
-                tardiness = bestTardiness;
-                makespan = bestMakeSpan;
+                cost = new SolutionCost(lowestCost);
                 schedules = Helpers.cloneSchedule(bestSchedules);
             }
 
 
-            Console.WriteLine(String.Format("Best Result: ({0},{1})", tardiness, makespan));
+            Console.WriteLine(String.Format("Best Result: ({0},{1})", cost.tardiness, cost.makeSpan));
 
-            Verifier.verifyModelSolution(problem, tardiness, makespan, schedules);
+            Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
             Console.WriteLine(String.Format("Iterations: {0}", currentStep));
-
-            Verifier.verifyModelSolution(problem, tardiness, makespan, schedules);
 
             using (StreamWriter outputFile = new StreamWriter(filepathResultInfo))
             {
-                outputFile.WriteLine(String.Format("Tardiness: {0}", tardiness));
-                outputFile.WriteLine(String.Format("Makespan: {0}", makespan));
+                outputFile.WriteLine(String.Format("Tardiness: {0}", cost.tardiness));
+                outputFile.WriteLine(String.Format("Makespan: {0}", cost.makeSpan));
                 outputFile.WriteLine(String.Format("Selected runtime: {0}s", runtimeInSeconds));
                 outputFile.WriteLine(String.Format("Number of iterations: {0}", currentStep));
 

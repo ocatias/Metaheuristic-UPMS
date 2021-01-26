@@ -20,9 +20,9 @@ namespace CO1
             for (int i = 0; i < allFilesInDirectory.Count; i++)
                 allFilesInDirectory[i] = allFilesInDirectory[i].Split("\\").Last();
 
-            allFilesInDirectory = allFilesInDirectory.OrderBy(x => Guid.NewGuid()).ToList();
+            //allFilesInDirectory = allFilesInDirectory.OrderBy(x => Guid.NewGuid()).ToList();
 
-            runSimulatedAnnealing(10, 1, pathTraining, allFilesInDirectory.Take(30).ToList(), "TryASmallSubset");
+            runSimulatedAnnealing(10, 1, pathTraining, allFilesInDirectory, "TryFasterVersionAllData(Sequential)");
         }
 
         public static void runSimulatedAnnealing(int secondsPerRun, int repeats, string path, List<string> filenames, string experimentName)

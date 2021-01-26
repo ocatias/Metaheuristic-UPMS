@@ -37,6 +37,7 @@ namespace Tests
             }
 
             Parallel.ForEach(filenames, (filename) =>
+            //foreach(string filename in filenames)
             {
                 string text = System.IO.File.ReadAllText(pathToSolution + "\\" + filename + ".soln");
                 List<string> parts = new List<string>(text.Split("\n"));
@@ -67,6 +68,7 @@ namespace Tests
                 (long tardinessFromSolution, long makeSpanFromSolution) = getSolutionTardinessAndMakeSpan(pathToSolution + "\\" + filename + ".soln.info");
                 Verifier.verifyModelSolution(problem, tardinessFromSolution, makeSpanFromSolution, machineOrder);
             });
+        //}
         }
 
         public (long, long) getSolutionTardinessAndMakeSpan(string path)
