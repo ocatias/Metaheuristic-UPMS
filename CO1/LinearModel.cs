@@ -224,16 +224,7 @@ namespace CO1
             //    throw new Exception("Number of constraints in model is wrong.");
         }
 
-        private int? getSuccessorJob(int predecessor, int machine, int jobsInclDummy, Variable[,,] X)
-        {
-            for (int j = 1; j < jobsInclDummy; j++)
-            {
-                if (X[predecessor, j, machine].SolutionValue() == 1)
-                    return j;
-            }
 
-            return null;
-        }
 
         private (long, long) getTardinessMakeSpanFromModel(int jobsInclDummy, Variable[] T, Variable Cmax)
         {
@@ -306,11 +297,11 @@ namespace CO1
 
             for (int m = 0; m < problem.machines; m++)
             {
-                int? foo = getSuccessorJob(machinesOrder[m].Last(), m, jobsInclDummy, X);
+                int? foo = Helpers.getSuccessorJobManyMachines(machinesOrder[m].Last(), m, jobsInclDummy, X);
                 while (foo != null)
                 {
                     machinesOrder[m].Add((int)foo);
-                    foo = getSuccessorJob(machinesOrder[m].Last(), m, jobsInclDummy, X);
+                    foo = Helpers.getSuccessorJobManyMachines(machinesOrder[m].Last(), m, jobsInclDummy, X);
                 }
 
                 // Create the same format as the original outputs

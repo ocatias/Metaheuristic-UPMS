@@ -14,7 +14,6 @@ namespace CO1
         {
             //string pathValidation = Environment.GetEnvironmentVariable("ValidationDataPath");
             string pathTraining = Environment.GetEnvironmentVariable("TrainingDataPath");
-            //List<string> realLifeDataFileNames = new List<string> { "p_9-180-180_1.max", "t_3-12-200_1.max", "p_15-60-60_1.max", "p_18-80-80_2.max", "p_3-17-20_1.max", "s_1-3-100_1.max", };
 
             List<string> allFilesInDirectory = (List<string>)Directory.GetFiles(pathTraining).ToList().Where(x => x.Contains(".max")).ToList();
             for (int i = 0; i < allFilesInDirectory.Count; i++)

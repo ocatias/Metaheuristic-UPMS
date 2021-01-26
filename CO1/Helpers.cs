@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Google.OrTools.LinearSolver;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -64,6 +65,30 @@ namespace CO1
             if (selectedJob != -1)
                 return selectedJob;
             return rnd.Next(0, schedules[machine].Count);
+        }
+
+        // Find the successor of a job in a model assignment with multiple machines
+        public static int? getSuccessorJobManyMachines(int predecessor, int machine, int jobsInclDummy, Variable[,,] X)
+        {
+            for (int j = 1; j < jobsInclDummy; j++)
+            {
+                if (X[predecessor, j, machine].SolutionValue() == 1)
+                    return j;
+            }
+
+            return null;
+        }
+
+        // Find the successor of a job in a model assignment
+        public static int? getSuccessorJobSingleMachine(int predecessor, int jobsInclDummy, Variable[,] X)
+        {
+            for (int j = 1; j < jobsInclDummy; j++)
+            {
+                if (X[predecessor, j].SolutionValue() == 1)
+                    return j;
+            }
+
+            return null;
         }
     }
 }
