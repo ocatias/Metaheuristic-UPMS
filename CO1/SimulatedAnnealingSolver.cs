@@ -80,7 +80,7 @@ namespace CO1
 
 
                     SingleMachineModel sm = new SingleMachineModel(problem, schedules[singleMachineIdx], singleMachineIdx);
-                    tempSchedule[singleMachineIdx] = sm.solveModel(10000, cost.tardinessPerMachine[singleMachineIdx]);
+                    tempSchedule[singleMachineIdx] = sm.solveModel(1000, cost.tardinessPerMachine[singleMachineIdx]);
                     changedMachines = new List<int>() { singleMachineIdx };
                 }
 
