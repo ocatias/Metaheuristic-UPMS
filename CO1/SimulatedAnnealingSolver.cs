@@ -16,12 +16,12 @@ namespace CO1
         double tMin = 6.73;
         double tMax = 2764.93;
         double temperature;
-        int maxStepsSinceLastImprovement = 10000; //Afterwards we will try and solve a subproblem explicitly
+        int maxStepsSinceLastImprovement = 5000000; //Afterwards we will try and solve a subproblem explicitly
 
         double probabilityInterMachineMove = 0.66;
         double probabilityShiftMove = 0.84;
         double probabilityBlockMove = 0.04;
-        double probabilityTardynessGuideance = 0.85;
+        double probabilityTardynessGuideance = 0.84;
         double probabilityMakeSpanGuideance = 0.71;
 
         public SimulatedAnnealingSolver(ProblemInstance problem)
@@ -37,7 +37,6 @@ namespace CO1
 
             SolutionCost cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
 
-            //(long tardiness, long makespan, int makeSpanMachine) = Verifier.calculateTardMakeSpanMachineFromMachineAssignment(problem, schedules);
             Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
 
             Random rnd = new Random();
@@ -47,7 +46,6 @@ namespace CO1
             int howOftenHaveWeCooled = 0;
             int currentStep = 0;
             int stepsSinceLastImprovement = 0;
-
 
             SolutionCost lowestCost = new SolutionCost(cost);
             List<int>[] bestSchedules = Helpers.cloneSchedule(schedules);
@@ -65,12 +63,25 @@ namespace CO1
                 }
                 else
                 {
+                    tempSchedule = Helpers.cloneSchedule(schedules);
                     stepsSinceLastImprovement = 0;
-                    int idx = cost.tardinessPerMachine.IndexOf(cost.tardinessPerMachine.Max());
-                    SingleMachineModel sm = new SingleMachineModel(problem, schedules[idx], idx);
-                    sm.solveModel(60000, cost.tardinessPerMachine[idx]);
-                    tempSchedule = null;
-                    changedMachines = null;
+
+
+                    // Selected a machine with more than one job scheduled to it and a nonzero tardiness
+                    List<WeightedItem<int>> weightedMachinesList = new List<WeightedItem<int>>();
+                    for(int m = 0; m < schedules.Length; m++)
+                    {
+                        if (schedules[m].Count > 1 && cost.tardinessPerMachine[m] > 0)
+                            weightedMachinesList.Add(new WeightedItem<int>(m, cost.tardinessPerMachine[m]));
+                    }
+
+                    int singleMachineIdx = WeightedItem<int>.Choose(weightedMachinesList);
+
+
+
+                    SingleMachineModel sm = new SingleMachineModel(problem, schedules[singleMachineIdx], singleMachineIdx);
+                    tempSchedule[singleMachineIdx] = sm.solveModel(10000, cost.tardinessPerMachine[singleMachineIdx]);
+                    changedMachines = new List<int>() { singleMachineIdx };
                 }
 
                 currentStep++;

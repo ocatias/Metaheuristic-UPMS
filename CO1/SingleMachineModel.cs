@@ -36,11 +36,17 @@ namespace CO1
         public List<int> solveModel(int milliseconds, long tardinessBefore)
         {
             int jobsInclDummy = schedule.Count + 1;
-            Solver solver = Solver.CreateSolver(solverType);
 
-            Variable[,] X = new Variable[jobsInclDummy, jobsInclDummy];
-            Variable[] C = new Variable[jobsInclDummy];
-            Variable[] T = new Variable[jobsInclDummy];
+            // Create an empty environment, set options and start
+            GRBEnv env = new GRBEnv(true);
+            env.Start();
+
+            // Create empty model
+            GRBModel solver = new GRBModel(env);
+
+            GRBVar[,] X = new GRBVar[jobsInclDummy, jobsInclDummy];
+            GRBVar[] C = new GRBVar[jobsInclDummy];
+            GRBVar[] T = new GRBVar[jobsInclDummy];
 
             // ToDo = Probably need a bigger and not fixed value
             int V = 100000;
@@ -51,87 +57,48 @@ namespace CO1
 
             setInitialValues(jobsInclDummy, solver, X, C, T);
 
-            Console.WriteLine("Number of variables: " + solver.NumVariables());
-            Console.WriteLine("Number of constraints: " + solver.NumConstraints());
-
-            solver.SetTimeLimit(milliseconds);
-            Solver.ResultStatus resultStatus = solver.Solve();
-
-            for (int i = 0; i < jobsInclDummy; i++)
-            {
-                for (int j = 0; j < jobsInclDummy; j++)
-                {
-                    if (X[i, j].SolutionValue() == 1)
-                    {
-                        Console.WriteLine("X_" + i + "," + j);
-                    }
-                }
-            }
-
-            Console.WriteLine("\n\nVariable Assignment:");
-            for (int j = 1; j < jobsInclDummy; j++)
-            {
-                Console.WriteLine("C_" + j + ": " + C[j].SolutionValue());
-                Console.WriteLine("T_" + j + ": " + T[j].SolutionValue());
+            solver.Set("TimeLimit", (milliseconds/1000.0).ToString());
+            solver.Set("OutputFlag", "0");
 
 
-            }
-
-
-            // Check that the problem has an optimal solution.
-            switch (resultStatus)
-            {
-                case (Solver.ResultStatus.OPTIMAL):
-                    Console.WriteLine("Solution is optimal.");
-                    break;
-                case (Solver.ResultStatus.NOT_SOLVED):
-                    Console.WriteLine("Not solved.");
-                    break;
-                default:
-                    Console.WriteLine("Solution is not optimal.");
-                    break;
-            }
+            solver.Optimize();
 
             List<int>[] machinesOrder = calculateMachineAsssignmentFromModel(jobsInclDummy, X);
 
-            Console.WriteLine(String.Format("Single machine model tardiness {0} -> {1}", tardinessBefore, solver.Objective().Value()));
+            Console.WriteLine(String.Format("Single machine model tardiness {0} -> {1}", tardinessBefore, solver.ObjVal));
 
-            return machinesOrder[0];
+            List<int> scheduleToReturn = new List<int>();
+            for(int i = 0;  i < machinesOrder[0].Count; i++)
+            {
+                scheduleToReturn.Add(schedule[machinesOrder[0][i]]);
+            }
+
+            return scheduleToReturn;
             
         }
-        private void setInitialValues(int jobsInclDummy, Solver solver, Variable[,] X, Variable[] C, Variable[] T)
+        private void setInitialValues(int jobsInclDummy, GRBModel solver, GRBVar[,] X, GRBVar[] C, GRBVar[] T)
         {
             List<Variable> variables = new List<Variable>();
             List<Double> initialValue = new List<double>();
 
-            double checkTardiness = 0;
-
-
             long currTimeOnMachine = 0;
             long tardiness = 0;
 
-            currTimeOnMachine += problem.getSetupTimeForJob(0, schedule[0] + 1, machine);
+            currTimeOnMachine += problem.getSetupTimeForJob(0, scheduleShifted[1], machine);
             currTimeOnMachine += problem.processingTimes[schedule[0], machine];
             tardiness += (currTimeOnMachine - problem.dueDates[schedule[0]]) > 0 ? currTimeOnMachine - problem.dueDates[schedule[0]] : 0;
 
-            variables.Add(C[1]);
-            initialValue.Add(currTimeOnMachine);
-            variables.Add(T[1]);
-            initialValue.Add(tardiness);
-            checkTardiness += tardiness;
+            C[1].Start = currTimeOnMachine;
+            T[1].Start = tardiness;
+
             for (int i = 1; i < schedule.Count; i++)
             {
-                currTimeOnMachine += problem.getSetupTimeForJob(schedule[i - 1] + 1, schedule[i] + 1, machine);
+                currTimeOnMachine += problem.getSetupTimeForJob(scheduleShifted[i], scheduleShifted[i+1], machine);
                 currTimeOnMachine += problem.processingTimes[schedule[i], machine];
                 tardiness = (currTimeOnMachine - problem.dueDates[schedule[i]]) > 0 ? currTimeOnMachine - problem.dueDates[schedule[i]] : 0;
-                variables.Add(C[i+1]);
-                initialValue.Add(currTimeOnMachine);
-                variables.Add(T[i+1]);
-                initialValue.Add(tardiness);
-
-                checkTardiness += tardiness;
+                C[i + 1].Start = currTimeOnMachine;
+                T[i + 1].Start = tardiness;
             }
-            Console.WriteLine("Check tardiness: " + checkTardiness.ToString());
 
             for (int i = 0; i < jobsInclDummy; i++)
             {
@@ -139,79 +106,75 @@ namespace CO1
                 {
                     if (i < j && (i + 1) == j)
                     {
-                        variables.Add(X[i, j]);
-                        initialValue.Add(1);
+                        X[i, j].Start = 1;
                     }
                     else
                     {
-                        variables.Add(X[i, j]);
-                        initialValue.Add(0);
+                        X[i, j].Start = 0;
                     }
                 }
             }
-
-            
-
-            solver.SetHint(new MPVariableVector(variables), initialValue.ToArray());
-
+            X[jobsInclDummy - 1, 0].Start = 1;
         }
 
-        private void initializeVariables(int jobsInclDummy, Solver solver, Variable[,] X, Variable[] C, Variable[] T)
+        private void initializeVariables(int jobsInclDummy, GRBModel solver, GRBVar[,] X, GRBVar[] C, GRBVar[] T)
         {
             // CONSTRAINT (24)
             for (int i = 0; i < jobsInclDummy; i++)
             {
                 for (int j = 0; j < jobsInclDummy; j++)
                 {
-                    X[i, j] = solver.MakeIntVar(0.0, 1.0, "X_" + i.ToString() + "," + j.ToString());
+                    X[i, j] = solver.AddVar(0.0, 1.0, 0.0, GRB.BINARY, "X_" + i.ToString() + "," + j.ToString());
                 }
             }
 
             for (int j = 0; j < jobsInclDummy; j++)
             {
-                C[j] = solver.MakeIntVar(0.0, double.PositiveInfinity, "C_" + j.ToString());
+                C[j] = solver.AddVar(0.0, GRB.INFINITY, 0.0, GRB.INTEGER, "C_" + j.ToString());
             }
 
             // Constraint (22)
             // Be careful: in the model T(dummy job) is not defined
             for (int i = 1; i < jobsInclDummy; i++)
             {
-                T[i] = solver.MakeIntVar(0.0, double.PositiveInfinity, "T_" + i.ToString());
+                T[i] = solver.AddVar(0.0, GRB.INFINITY, 0.0, GRB.INTEGER, "T_" + i.ToString());
             }
         }
 
-        private void setConstraints(int jobsInclDummy, Solver solver, Variable[,] X, Variable[] C, Variable[] T, int V)
+        private void setConstraints(int jobsInclDummy, GRBModel solver, GRBVar[,] X, GRBVar[] C, GRBVar[] T, int V)
         {
             // Constraint (13)
             for(int j = 1; j < jobsInclDummy; j++)
             {
-                LinearExpr leftside = new LinearExpr();
+                GRBLinExpr leftside = new GRBLinExpr();
                 for (int i = 0; i < jobsInclDummy; i++)
                 {
                     if (i != j)
                         leftside += X[i, j];
                 }
-                solver.Add(leftside == 1);
+
+                solver.AddConstr(leftside == 1, "c13_" + j.ToString());
             }
 
             // Constraint (3)
             for(int i = 1; i < jobsInclDummy; i++)
             {
-                LinearExpr leftside = new LinearExpr();
+                GRBLinExpr leftside = new GRBLinExpr();
                 for (int j = 0; j < jobsInclDummy; j++)
                 {   
                     if(i != j)
                         leftside += X[i, j];
                 }
-                solver.Add(leftside == 1);
+                solver.AddConstr(leftside == 1, "c3_" + i.ToString());
+
             }
 
 
             // Constraint (5)
-            for(int j = 1; j < jobsInclDummy; j++)
+            for (int j = 1; j < jobsInclDummy; j++)
             {
-                LinearExpr leftside = new LinearExpr();
-                LinearExpr rightside = new LinearExpr();
+                GRBLinExpr leftside = new GRBLinExpr();
+                GRBLinExpr rightside = new GRBLinExpr();
                 for(int i = 0; i < jobsInclDummy; i++)
                 {
                     if (i == j)
@@ -220,7 +183,8 @@ namespace CO1
                     leftside += X[i, j];
                     rightside += X[j, i];
                 }
-                solver.Add(leftside == rightside);
+                solver.AddConstr(leftside == rightside, "c5_" + j.ToString());
+
             }
 
             // Constraint (28)
@@ -228,52 +192,57 @@ namespace CO1
             {
                 for (int j = 1; j < jobsInclDummy; j++)
                 {
-                    LinearExpr r2 = X[scheduleShifted[i], scheduleShifted[j]] - 1;
+                    GRBLinExpr r2 = X[i, j] - 1;
                     r2 *= V;
 
                     r2 += problem.s[scheduleShifted[i], scheduleShifted[j], machine] + problem.processingTimes[scheduleShifted[j] - 1, machine];
 
-                    solver.Add(C[j] >= C[i] + r2);
+                    solver.AddConstr(C[j] >= C[i] + r2, "c28_" + i.ToString() + "," + j.ToString());
                 }
             }
 
             // Constraint (19)
-            LinearExpr lhs = new LinearExpr();
-            for (int j = 1; j < jobsInclDummy; j++)
-                lhs += X[0, j];
+            {
+                GRBLinExpr lhs = new GRBLinExpr();
+                for (int j = 1; j < jobsInclDummy; j++)
+                    lhs += X[0, j];
 
-            solver.Add(lhs == 1.0);
+                solver.AddConstr(lhs == 1.0, "c19");
+
+            }
 
             // Constraint (21)
             for (int j = 1; j < jobsInclDummy; j++)
             {
-                solver.Add(T[j] >= C[j] - problem.dueDates[scheduleShifted[j]-1]);
+                solver.AddConstr(T[j] >= C[j] - problem.dueDates[scheduleShifted[j] - 1], "c21_" + j.ToString());
+
             }
 
             // Constraint (23)
-            solver.Add(C[0] == 0);
+            solver.AddConstr(C[0] == 0, "c23");
+
         }
 
-        private void setFunctionToMinimize(int jobsInclDummy, Solver solver, Variable[] T)
+        private void setFunctionToMinimize(int jobsInclDummy, GRBModel solver, GRBVar[] T)
         {
             // MINIMISE (13)
-            LinearExpr functionToMinimise = T[1];
+            GRBLinExpr functionToMinimise = T[1];
             for (int i = 2; i < jobsInclDummy; i++)
             {
                 functionToMinimise += T[i];
             }
-            solver.Minimize(functionToMinimise);
+            solver.SetObjective(functionToMinimise, GRB.MINIMIZE);
         }
 
-        private List<int>[] calculateMachineAsssignmentFromModel(int jobsInclDummy, Variable[,] X)
+        private List<int>[] calculateMachineAsssignmentFromModel(int jobsInclDummy, GRBVar[,] X)
         {
             List<int> machinesOrder = new List<int>() { 0 };
 
-            int? foo = Helpers.getSuccessorJobSingleMachine(machinesOrder.Last(), jobsInclDummy, X);
+            int? foo = Helpers.getSuccessorJobSingleMachineGRB(machinesOrder.Last(), jobsInclDummy, X);
             while (foo != null)
             {
                 machinesOrder.Add((int)foo);
-                foo = Helpers.getSuccessorJobSingleMachine(machinesOrder.Last(), jobsInclDummy, X);
+                foo = Helpers.getSuccessorJobSingleMachineGRB(machinesOrder.Last(), jobsInclDummy, X);
             }
 
             // Create the same format as the original outputs

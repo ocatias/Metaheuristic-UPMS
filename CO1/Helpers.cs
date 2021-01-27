@@ -1,4 +1,5 @@
 ﻿using Google.OrTools.LinearSolver;
+using Gurobi;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -54,9 +55,19 @@ namespace CO1
         public static int findTardyJobIdx(ProblemInstance problem, List<int>[] schedules, Random rnd, int machine)
         {
             int selectedJob = -1;
+            long[] tardiness = new long[schedules[machine].Count];
+            long[] time = new long[schedules[machine].Count];
+            time[0] = problem.getSetupTimeForJob(0, schedules[machine][0] + 1, machine) + problem.processingTimes[schedules[machine][0], machine];
+            tardiness[0] = (time[0] > problem.dueDates[schedules[machine][0]]) ? time[0] - problem.dueDates[schedules[machine][0]] : 0;
+            for (int i = 1; i < schedules[machine].Count; i++)
+            {
+                time[i] = time[i - 1] + problem.getSetupTimeForJob(schedules[machine][i - 1] + 1, schedules[machine][i] + 1, machine) + problem.processingTimes[schedules[machine][i], machine];
+                tardiness[i] = (time[i] > problem.dueDates[schedules[machine][i]]) ? time[i] - problem.dueDates[schedules[machine][i]] : 0;
+            }
+
             for (int i = schedules[machine].Count - 1; i > 0; i--)
             {
-                if (Helpers.isJobTardy(problem, schedules, schedules[machine][i], machine))
+                if (tardiness[i] > 0)
                 {
                     selectedJob = rnd.Next(0, i + 1);
                     break;
@@ -85,6 +96,18 @@ namespace CO1
             for (int j = 1; j < jobsInclDummy; j++)
             {
                 if (X[predecessor, j].SolutionValue() == 1)
+                    return j;
+            }
+
+            return null;
+        }
+
+        // Find the successor of a job in a model assignment
+        public static int? getSuccessorJobSingleMachineGRB(int predecessor, int jobsInclDummy, GRBVar[,] X)
+        {
+            for (int j = 1; j < jobsInclDummy; j++)
+            {
+                if (X[predecessor, j].X == 1)
                     return j;
             }
 
