@@ -17,4 +17,10 @@
     <PackageReference Include="Google.OrTools" Version="8.1.8487" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="gurobi91.netstandard20">
+      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Gurobi\win64\lib\gurobi91.netstandard20.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

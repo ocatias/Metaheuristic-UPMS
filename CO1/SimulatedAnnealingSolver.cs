@@ -56,8 +56,22 @@ namespace CO1
 
             while (DateTime.UtcNow.Subtract(startTime).TotalSeconds < runtimeInSeconds)
             {
-                (List<int>[] tempSchedule, List<int> changedMachines) = SimulatedAnnealingMoves.doSAStep(problem, rnd, schedules, cost.makeSpanMachine,
-                    probabilityTardynessGuideance, probabilityInterMachineMove, probabilityBlockMove, probabilityShiftMove, probabilityMakeSpanGuideance);
+                List<int>[] tempSchedule;
+                List<int> changedMachines;
+                if (stepsSinceLastImprovement < maxStepsSinceLastImprovement)
+                {
+                    (tempSchedule, changedMachines) = SimulatedAnnealingMoves.doSAStep(problem, rnd, schedules, cost.makeSpanMachine,
+                         probabilityTardynessGuideance, probabilityInterMachineMove, probabilityBlockMove, probabilityShiftMove, probabilityMakeSpanGuideance);
+                }
+                else
+                {
+                    stepsSinceLastImprovement = 0;
+                    int idx = cost.tardinessPerMachine.IndexOf(cost.tardinessPerMachine.Max());
+                    SingleMachineModel sm = new SingleMachineModel(problem, schedules[idx], idx);
+                    sm.solveModel(60000, cost.tardinessPerMachine[idx]);
+                    tempSchedule = null;
+                    changedMachines = null;
+                }
 
                 currentStep++;
                 if ((currentStep / stepsBeforeCooling) > howOftenHaveWeCooled)
@@ -76,9 +90,16 @@ namespace CO1
                 SolutionCost costTemp = new SolutionCost(cost);
                 costTemp = Verifier.updateTardMakeSpanMachineFromMachineAssignment(problem, tempSchedule, costTemp, changedMachines);
 
-                if((costTemp.tardiness < cost.tardiness || (costTemp.tardiness == cost.tardiness && costTemp.makeSpan < cost.makeSpan)) || 
+                if (costTemp.isBetterThan(cost))
+                    stepsSinceLastImprovement = 0;
+                else
+                    stepsSinceLastImprovement++;
+
+                if (costTemp.isBetterThan(cost) || 
                     (rnd.NextDouble() <= Math.Exp(-(Helpers.cost(costTemp.tardiness, costTemp.makeSpan) - Helpers.cost(cost.tardiness, cost.makeSpan))/temperature)))
                 {
+                    
+
                     schedules = tempSchedule;
                     cost = costTemp;
 

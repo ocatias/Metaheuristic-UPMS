@@ -12,7 +12,7 @@ namespace CO1
 
         public SolutionCost(SolutionCost prev)
         {
-            this.makeSpan = prev.makeSpan;
+            this.makeSpan =  prev.makeSpan;
             this.tardiness = prev.tardiness;
             this.makeSpanMachine = prev.makeSpanMachine;
             this.tardinessPerMachine = new List<long>(prev.tardinessPerMachine);

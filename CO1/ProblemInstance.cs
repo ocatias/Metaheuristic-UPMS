@@ -26,6 +26,18 @@ namespace CO1
 
         public int[,,] s;
 
+        public ProblemInstance(ProblemInstance other)
+        {
+            this.machines = other.machines;
+            this.materialsAmount = other.materialsAmount;
+            this.jobs = other.jobs;
+            this.dueDates = new List<long>(other.dueDates);
+            this.materials = new List<int>(other.materials);
+            this.processingTimes = other.processingTimes;
+            this.setupTimes = other.setupTimes;
+            this.s = other.s;
+        }
+
         public ProblemInstance(string path)
         {
             if (doPrintInfo)
@@ -152,6 +164,12 @@ namespace CO1
         public bool isFeasibleJobAssignment(int job, int machine)
         {
             return (processingTimes[job, machine] >= 0);
+        }
+
+        // Permanently removes all jobs not in this schedules
+        public void shrinkToSingleMachineProblem(int machine, List<int> schedule)
+        {
+
         }
     }
 }
