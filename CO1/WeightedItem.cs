@@ -19,7 +19,7 @@ namespace CO1
             this.weight = weight;
         }
 
-        public static T Choose(List<WeightedItem<T>> items)
+        private static WeightedItem<T> ChooseWeightedItem(List<WeightedItem<T>> items)
         {
             long cumulSum = 0;
             long cnt = items.Count();
@@ -31,8 +31,21 @@ namespace CO1
             }
 
             double divSpot = rndInst.NextDouble() * cumulSum;
-            WeightedItem<T> chosen = items.FirstOrDefault(i => i.cumulativeSum >= divSpot);
+            return items.FirstOrDefault(i => i.cumulativeSum >= divSpot);
+        }
+
+        public static T Choose(List<WeightedItem<T>> items)
+        {
+            WeightedItem<T> chosen = ChooseWeightedItem(items);
             if (chosen == null) throw new Exception("No item chosen - there seems to be a problem with the probability distribution.");
+            return chosen.value;
+        }
+
+        public static T ChooseAndRemove(List<WeightedItem<T>> items)
+        {
+            WeightedItem<T> chosen = ChooseWeightedItem(items);
+            if (chosen == null) throw new Exception("No item chosen - there seems to be a problem with the probability distribution.");
+            items.Remove(chosen);
             return chosen.value;
         }
     }

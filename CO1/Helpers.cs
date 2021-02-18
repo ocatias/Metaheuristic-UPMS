@@ -90,6 +90,18 @@ namespace CO1
             return null;
         }
 
+        // Find the successor of a job in a model assignment with multiple machines
+        public static int? getSuccessorJobManyMachinesGRB(int predecessor, int machine, int jobsInclDummy, GRBVar[,,] X)
+        {
+            for (int j = 1; j < jobsInclDummy; j++)
+            {
+                if (X[predecessor, j, machine].X == 1)
+                    return j;
+            }
+
+            return null;
+        }
+
         // Find the successor of a job in a model assignment
         public static int? getSuccessorJobSingleMachine(int predecessor, int jobsInclDummy, Variable[,] X)
         {

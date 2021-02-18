@@ -9,6 +9,7 @@ namespace CO1
 {
     public class SingleMachineModel
     {
+        private GRBEnv env;
         private ProblemInstance problem;
         private List<int> schedule;
         private int machine;
@@ -18,8 +19,9 @@ namespace CO1
         private string solverType;
 
 
-        public SingleMachineModel(ProblemInstance problem, List<int> schedule, int machine, string solverType = "gurobi")
+        public SingleMachineModel(ProblemInstance problem, GRBEnv env, List<int> schedule, int machine, string solverType = "gurobi")
         {
+            this.env = env;
             this.problem = problem;
             this.schedule = schedule;
             this.solverType = solverType;
@@ -36,10 +38,6 @@ namespace CO1
         public List<int> solveModel(int milliseconds, long tardinessBefore)
         {
             int jobsInclDummy = schedule.Count + 1;
-
-            // Create an empty environment, set options and start
-            GRBEnv env = new GRBEnv(true);
-            env.Start();
 
             // Create empty model
             GRBModel solver = new GRBModel(env);
@@ -65,7 +63,7 @@ namespace CO1
 
             List<int>[] machinesOrder = calculateMachineAsssignmentFromModel(jobsInclDummy, X);
 
-            Console.WriteLine(String.Format("Single machine model tardiness {0} -> {1}", tardinessBefore, solver.ObjVal));
+            Console.WriteLine(String.Format("1 machine model tardiness {0} -> {1}", tardinessBefore, solver.ObjVal));
 
             List<int> scheduleToReturn = new List<int>();
             for(int i = 0;  i < machinesOrder[0].Count; i++)
@@ -73,8 +71,8 @@ namespace CO1
                 scheduleToReturn.Add(schedule[machinesOrder[0][i]]);
             }
 
+            solver.Dispose();
             return scheduleToReturn;
-            
         }
         private void setInitialValues(int jobsInclDummy, GRBModel solver, GRBVar[,] X, GRBVar[] C, GRBVar[] T)
         {

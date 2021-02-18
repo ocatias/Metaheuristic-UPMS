@@ -15,18 +15,44 @@ namespace CO1
             string pathValidation = Environment.GetEnvironmentVariable("ValidationDataPath");
             string pathTraining = Environment.GetEnvironmentVariable("TrainingDataPath");
             //string pathRealLife = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\real-life";
-            //List<string> allFilesInDirectory = new List<string>() { "p_2-760-760_2.max" };
 
-            List<string> allFilesInDirectory = (List<string>)Directory.GetFiles(pathTraining).ToList().Where(x => x.Contains(".max")).ToList();
-            for (int i = 0; i < allFilesInDirectory.Count; i++)
-                allFilesInDirectory[i] = allFilesInDirectory[i].Split("\\").Last();
+            // Big files:
+            List<string> allFilesInDirectory = new List<string>() { "s_23-148-160_1.max" };
+
+            //List<string> allFilesInDirectory = (List<string>)Directory.GetFiles(pathTraining).ToList().Where(x => x.Contains(".max")).ToList();
+            //for (int i = 0; i < allFilesInDirectory.Count; i++)
+            //    allFilesInDirectory[i] = allFilesInDirectory[i].Split("\\").Last();
+
+
 
             //allFilesInDirectory = allFilesInDirectory.OrderBy(x => Guid.NewGuid()).ToList();
 
-            runSimulatedAnnealing(10, 1, pathTraining, allFilesInDirectory, "ImprovedTardynessGuideance(Seq)");
+            runVLNS(30, 1, pathTraining, allFilesInDirectory, "1802SingleMachineOpt");
+            //runSimulatedAnnealing(60, 1, pathValidation, allFilesInDirectory, "2801CompareToMax(Seq)");
         }
 
-        public static void runSimulatedAnnealing(int secondsPerRun, int repeats, string path, List<string> filenames, string experimentName)
+        public static void runVLNS(int secondsPerRun, int repeats, string path, List<string> filenames, string experimentName)
+        {
+            Console.WriteLine("Run VLNS Solver");
+
+            for (int i = 0; i < repeats; i++)
+            {
+                //Parallel.ForEach(filenames, (filename) =>
+                //{
+                foreach (string filename in filenames)
+                {
+                    Console.WriteLine(String.Format("Current File: {0}", filename));
+                    ProblemInstance problem = new ProblemInstance(path + "\\" + filename);
+                    (string fpInfo, string fpSchedule) = getFilepaths(filename, experimentName);
+
+                    VLNSSolver solver = new VLNSSolver(problem);
+                    solver.solve(secondsPerRun, fpInfo, fpSchedule);
+                }
+            }
+        }
+
+
+            public static void runSimulatedAnnealing(int secondsPerRun, int repeats, string path, List<string> filenames, string experimentName)
         {
             Console.WriteLine("Run Simulated Annealing Solver");
 
