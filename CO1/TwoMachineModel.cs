@@ -11,8 +11,11 @@ namespace CO1
         private GRBEnv env;
         private ProblemInstance problem;
         private List<int>[] schedule;
-        private int machine1, machine2;
-        private List<int> scheduleInitialCombined = new List<int>();
+
+        // 0 is the dummy job
+        private List<int> scheduleInitialCombinedWithDummy = new List<int>();
+        private List<int> scheduleInitialCombinedWithoutDummy = new List<int>();
+
         private List<int> machinesToChange;
 
         public TwoMachineModel(ProblemInstance problem, GRBEnv env, List<int>[] schedule, List<int> machinesToChange)
@@ -20,9 +23,18 @@ namespace CO1
             this.env = env;
             this.problem = problem;
             this.schedule = schedule;
-            this.scheduleInitialCombined.AddRange(schedule[machine1]);
-            this.scheduleInitialCombined.AddRange(schedule[machine2]);
+            foreach (int m in machinesToChange)
+            {
+                this.scheduleInitialCombinedWithoutDummy.AddRange(schedule[m]);
+
+            }
             this.machinesToChange = machinesToChange;
+
+            for (int i = 0; i < scheduleInitialCombinedWithoutDummy.Count; i++)
+                scheduleInitialCombinedWithoutDummy[i]++;
+
+            scheduleInitialCombinedWithDummy = new List<int>(scheduleInitialCombinedWithoutDummy);
+            scheduleInitialCombinedWithDummy.Insert(0, 0);
         }
 
         public List<int>[] solveModel(int milliseconds, long tardinessBefore)
@@ -48,14 +60,19 @@ namespace CO1
             setInitialValues(jobsInclDummy, model, X, C, T, Cmax, Y);
 
             model.Set("TimeLimit", (milliseconds / 1000.0).ToString());
-            model.Set("OutputFlag", "0");
+            model.Set("OutputFlag", "1");
 
             Console.WriteLine("Now solving.");
-            model.Optimize();
 
-            List<int>[] newSchedule = calculateMachineAsssignmentFromModel(jobsInclDummy, X);
+            //Console.WriteLine("Start solution value " + Math.Floor(model.ObjVal / V).ToString());
+
+            model.Optimize();
+            List<int>[] newSchedule = calculateMachineAsssignmentFromModel(jobsInclDummy, X, schedule);
 
             Console.WriteLine(String.Format(machinesToChange.Count.ToString() + " machine model tardiness {0} -> {1}", tardinessBefore, Math.Floor(model.ObjVal / V)));
+
+            if (tardinessBefore < Math.Floor(model.ObjVal / V))
+                throw new Exception("AAAH!");
 
             model.Dispose();
             return newSchedule;
@@ -64,9 +81,11 @@ namespace CO1
 
         private void setInitialValues(int jobsInclDummy, GRBModel model, GRBVar[,,] X, GRBVar[] C, GRBVar[] T, GRBVar Cmax, GRBVar[,] Y)
         {
+            return;
+
             long maxMakeSpan = 0;
 
-            for (int machine = 0; machine < problem.machines; machine++)
+            foreach (int machine in machinesToChange)
             {
                 if (schedule[machine].Count == 0)
                     continue;
@@ -99,9 +118,9 @@ namespace CO1
                     C[schedule[machine][0] + 1].LB = currTimeOnMachine;
                 }
 
-                for(int j = 0; j < jobsInclDummy; j++)
+                foreach (int j in scheduleInitialCombinedWithDummy)
                 {
-                    for(int m = 0; m < problem.machines; m++)
+                    foreach (int m in machinesToChange)
                     {
                         int xValue = j != 0 || m != machine ? 0 : 1;
                         X[j, schedule[machine][0] + 1, m].Start = xValue;
@@ -115,7 +134,7 @@ namespace CO1
                     }
                 }
 
-                for(int m = 0; m < problem.machines; m++)
+                foreach (int m in machinesToChange)
                 {
                     int yValue = m != machine ? 0 : 1;
                     Y[schedule[machine][0] + 1, m].Start = yValue;
@@ -149,9 +168,9 @@ namespace CO1
                         C[schedule[machine][i] + 1].LB = currTimeOnMachine;
                     }
 
-                    for (int j = 0; j < jobsInclDummy; j++)
+                    foreach (int j in scheduleInitialCombinedWithDummy)
                     {
-                        for (int m = 0; m < problem.machines; m++)
+                        foreach (int m in machinesToChange)
                         {
                             int xValue = j != schedule[machine][i - 1] + 1 || m != machine ? 0 : 1;
                             X[j, schedule[machine][i] + 1, m].Start = xValue;
@@ -165,7 +184,7 @@ namespace CO1
                     }
 
 
-                    for (int m = 0; m < problem.machines; m++)
+                    foreach (int m in machinesToChange)
                     {
                         int yValue = m != machine ? 0 : 1;
                         Y[schedule[machine][i] + 1, m].Start = yValue;
@@ -189,33 +208,33 @@ namespace CO1
         private void initializeVariables(int jobsInclDummy, GRBModel model, GRBVar[,,] X, GRBVar[] C, GRBVar[] T, GRBVar Cmax, GRBVar[,] Y)
         {
             // CONSTRAINT (24)
-            for (int i = 0; i < jobsInclDummy; i++)
+            foreach (int i in scheduleInitialCombinedWithDummy)
             {
-                for (int j = 0; j < jobsInclDummy; j++)
+                foreach (int j in scheduleInitialCombinedWithDummy)
                 {
-                    for (int k = 0; k < problem.machines; k++)
+                    foreach (int k in machinesToChange)
                     {
                         X[i, j, k] = model.AddVar(0.0, 1.0, 0.0, GRB.BINARY, "X_" + i.ToString() + "," + j.ToString() + "," + k.ToString());
                     }
                 }
             }
 
-            for (int j = 0; j < jobsInclDummy; j++)
+            foreach (int j in scheduleInitialCombinedWithDummy)
             {
                 C[j] = model.AddVar(0.0, GRB.INFINITY, 0.0, GRB.INTEGER, "C_" + j.ToString());
             }
 
             // Constraint (22)
             // Be careful: in the model T(dummy job) is not defined
-            for (int i = 1; i < jobsInclDummy; i++)
+            foreach (int i in scheduleInitialCombinedWithoutDummy)
             {
                 T[i] = model.AddVar(0.0, GRB.INFINITY, 0.0, GRB.INTEGER, "T_" + i.ToString());
             }
 
             // Constraint (25)
-            for (int i = 1; i < jobsInclDummy; i++)
+            foreach (int i  in scheduleInitialCombinedWithoutDummy)
             {
-                for (int j = 0; j < problem.machines; j++)
+                foreach (int j in machinesToChange)
                 {
                     Y[i, j] = model.AddVar(0.0, 1.0, 0.0, GRB.BINARY, "Y_" + i.ToString() + "," + j.ToString());
                 }
@@ -225,10 +244,10 @@ namespace CO1
         private void setConstraints(int jobsInclDummy, GRBModel model, GRBVar[,,] X, GRBVar[] C, GRBVar[] T, GRBVar Cmax, GRBVar[,] Y, int V)
         {
             // Constraint (26)
-            for (int j = 1; j < jobsInclDummy; j++)
+            foreach (int j in scheduleInitialCombinedWithoutDummy)
             {
                 GRBLinExpr lhs = new GRBLinExpr();
-                for (int m = 0; m < problem.machines; m++)
+                foreach (int m in machinesToChange)
                 {
                     if (problem.processingTimes[j - 1, m] >= 0)
                         lhs += Y[j, m];
@@ -237,11 +256,11 @@ namespace CO1
             }
 
             // Constraint (27)
-            for (int j = 1; j < jobsInclDummy; j++)
+            foreach (int j in scheduleInitialCombinedWithoutDummy)
             {
                 GRBLinExpr lhs = new GRBLinExpr();
                 bool foundASingleForbiddenMachine = false;
-                for (int m = 0; m < problem.machines; m++)
+                foreach (int m in machinesToChange)
                 {
                     if (problem.processingTimes[j - 1, m] < 0)
                     {
@@ -255,12 +274,12 @@ namespace CO1
             }
 
             // Constraint (16)
-            for (int j = 1; j < jobsInclDummy; j++)
+            foreach (int j in scheduleInitialCombinedWithoutDummy)
             {
-                for (int m = 0; m < problem.machines; m++)
+                foreach (int m in machinesToChange)
                 {
                     GRBLinExpr lhs = new GRBLinExpr();
-                    for (int i = 0; i < jobsInclDummy; i++)
+                    foreach (int i in scheduleInitialCombinedWithDummy)
                     {
                         if (i != j)
                         {
@@ -272,12 +291,12 @@ namespace CO1
             }
 
             // Constraint 17
-            for (int i = 1; i < jobsInclDummy; i++)
+            foreach (int i in scheduleInitialCombinedWithoutDummy)
             {
-                for (int m = 0; m < problem.machines; m++)
+                foreach (int m in machinesToChange)
                 {
                     GRBLinExpr lhs = new GRBLinExpr();
-                    for (int j = 0; j < jobsInclDummy; j++)
+                    foreach (int j in scheduleInitialCombinedWithDummy)
                     {
                         if (i != j)
                         {
@@ -289,12 +308,12 @@ namespace CO1
             }
 
             // Constraint (28)
-            for (int i = 0; i < jobsInclDummy; i++)
+            foreach (int i in scheduleInitialCombinedWithDummy)
             {
-                for (int j = 1; j < jobsInclDummy; j++)
+                foreach (int j in scheduleInitialCombinedWithoutDummy)
                 {
                     GRBLinExpr r2 = new GRBLinExpr();
-                    for (int m = 0; m < problem.machines; m++)
+                    foreach (int m in machinesToChange)
                     {
                         r2 += X[i, j, m];
                     }
@@ -302,7 +321,7 @@ namespace CO1
                     r2 *= V;
 
                     GRBLinExpr r1 = new GRBLinExpr();
-                    for (int m = 0; m < problem.machines; m++)
+                    foreach (int m in machinesToChange)
                     {
                         r1 += X[i, j, m] * (problem.s[i, j, m] + problem.processingTimes[j - 1, m]);
                     }
@@ -312,25 +331,25 @@ namespace CO1
             }
 
             // Constraint (19)
-            for (int m = 0; m < problem.machines; m++)
+            foreach (int m in machinesToChange)
             {
                 GRBLinExpr lhs = new GRBLinExpr();
-                for (int j = 1; j < jobsInclDummy; j++)
+                foreach (int j in scheduleInitialCombinedWithoutDummy)
                     lhs += X[0, j, m];
 
                 model.AddConstr(lhs <= 1.0, "C19_" + m.ToString());
             }
 
             // Constraint (20)
-            for (int m = 0; m < problem.machines; m++)
+            foreach (int m in machinesToChange)
             {
                 GRBLinExpr[] lhs = new GRBLinExpr[jobsInclDummy + 1];
                 GRBLinExpr lhsFinal = new GRBLinExpr();
 
-                for (int i = 0; i < jobsInclDummy; i++)
+                foreach (int i in scheduleInitialCombinedWithDummy)
                 {
                     lhs[i] = new GRBLinExpr();
-                    for (int j = 1; j < jobsInclDummy; j++)
+                    foreach (int j in scheduleInitialCombinedWithoutDummy)
                     {
                         if (i != j)
                         {
@@ -339,20 +358,20 @@ namespace CO1
                     }
                 }
                 lhs[jobsInclDummy] = new GRBLinExpr();
-                for (int i = 1; i < jobsInclDummy; i++)
+                foreach (int i in scheduleInitialCombinedWithoutDummy)
                 {
                     lhs[jobsInclDummy] += problem.processingTimes[i - 1, m] * Y[i, m] + problem.s[i, 0, m] * X[i, 0, m];
 
                 }
                 GRBLinExpr b = new GRBLinExpr();
-                for (int o = 0; o < jobsInclDummy + 1; o++)
+                foreach (int o in scheduleInitialCombinedWithDummy)
                     b += lhs[o];
 
                 model.AddConstr(b <= Cmax, "C20_" + m.ToString());
             }
 
             // Constraint (21)
-            for (int j = 1; j < jobsInclDummy; j++)
+            foreach (int j in scheduleInitialCombinedWithoutDummy)
             {
                 model.AddConstr(T[j] >= C[j] - problem.dueDates[j - 1], "C21_" + j.ToString());
             }
@@ -364,37 +383,36 @@ namespace CO1
         private void setFunctionToMinimize(int jobsInclDummy, GRBModel model, GRBVar[,,] X, GRBVar[] C, GRBVar[] T, GRBVar Cmax, GRBVar[,] Y, int V)
         {
             // MINIMISE (13)
-            GRBLinExpr functionToMinimise = T[1] * V;
-            for (int i = 2; i < jobsInclDummy; i++)
+            GRBLinExpr functionToMinimise = T[scheduleInitialCombinedWithoutDummy[0]] * V;
+            for (int i = 1; i < scheduleInitialCombinedWithoutDummy.Count; i++)
             {
-                functionToMinimise += T[i] * V;
+                functionToMinimise += T[scheduleInitialCombinedWithoutDummy[i]] * V;
             }
             functionToMinimise += Cmax;
             model.SetObjective(functionToMinimise, GRB.MINIMIZE);
         }
 
-        private List<int>[] calculateMachineAsssignmentFromModel(int jobsInclDummy, GRBVar[,,] X)
+        private List<int>[] calculateMachineAsssignmentFromModel(int jobsInclDummy, GRBVar[,,] X, List<int>[] schedule)
         {
-            List<int>[] machinesOrder = new List<int>[problem.machines];
-            for (int m = 0; m < problem.machines; m++)
-                machinesOrder[m] = new List<int> { 0 };
+            foreach (int m in machinesToChange)
+                schedule[m] = new List<int> { 0 };
 
-            for (int m = 0; m < problem.machines; m++)
+            foreach (int m in machinesToChange)
             {
-                int? foo = Helpers.getSuccessorJobManyMachinesGRB(machinesOrder[m].Last(), m, jobsInclDummy, X);
+                int? foo = Helpers.getSuccessorJobManyMachinesOnlySomeJobsGRB(schedule[m].Last(), m, scheduleInitialCombinedWithoutDummy, X);
                 while (foo != null)
                 {
-                    machinesOrder[m].Add((int)foo);
-                    foo = Helpers.getSuccessorJobManyMachinesGRB(machinesOrder[m].Last(), m, jobsInclDummy, X);
+                    schedule[m].Add((int)foo);
+                    foo = Helpers.getSuccessorJobManyMachinesOnlySomeJobsGRB(schedule[m].Last(), m, scheduleInitialCombinedWithoutDummy, X);
                 }
 
                 // Create the same format as the original outputs
-                machinesOrder[m].Remove(0);
-                for (int i = 0; i < machinesOrder[m].Count; i++)
-                    machinesOrder[m][i] = machinesOrder[m][i] - 1;
+                schedule[m].Remove(0);
+                for (int i = 0; i < schedule[m].Count; i++)
+                    schedule[m][i] = schedule[m][i] - 1;
             }
 
-            return machinesOrder;
+            return schedule;
         }
 
     }

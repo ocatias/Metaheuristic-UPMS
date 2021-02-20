@@ -18,6 +18,9 @@ namespace CO1
 
             // Big files:
             List<string> allFilesInDirectory = new List<string>() { "s_23-148-160_1.max" };
+           
+
+
 
             //List<string> allFilesInDirectory = (List<string>)Directory.GetFiles(pathTraining).ToList().Where(x => x.Contains(".max")).ToList();
             //for (int i = 0; i < allFilesInDirectory.Count; i++)

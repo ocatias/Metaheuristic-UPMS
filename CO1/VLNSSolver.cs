@@ -51,19 +51,34 @@ namespace CO1
                         weightedMachinesList.Add(new WeightedItem<int>(m, cost.tardinessPerMachine[m]));
                 }
 
-                int millisecondsTime = 30000 / (problem.machines / nrOfMachinesToSolve);
+                //int millisecondsTime = 30000 / (problem.machines / nrOfMachinesToSolve);
+                int millisecondsTime = 30000 / (problem.machines / 3);
+
 
                 while (weightedMachinesList.Count > 1)
                 {
                     List<int> machingesToChange = new List<int>();
-                    for (int selector = 0; selector < nrOfMachinesToSolve && weightedMachinesList.Count > 1; selector++)
+                    for (int selector = 0; selector < 3 && weightedMachinesList.Count > 1; selector++)
                     {
                         int selectedMachine = WeightedItem<int>.ChooseAndRemove(weightedMachinesList);
                         machingesToChange.Add(selectedMachine);
                     }
 
+                    long tardinessBefore = 0;
+                    foreach (int m in machingesToChange)
+                        tardinessBefore += cost.tardinessPerMachine[m];
+
                     TwoMachineModel tm = new TwoMachineModel(problem, env, tempSchedule, machingesToChange);
-                    tempSchedule = tm.solveModel(millisecondsTime, cost.tardiness);
+                    tempSchedule = tm.solveModel(millisecondsTime, tardinessBefore);
+
+                    foreach (int m in machingesToChange)
+                    {
+                        (cost.tardinessPerMachine[m], cost.makeSpanPerMachine[m]) = Verifier.calculateTardMakeSpanMachineFromMachineAssignmentForSingleMachine(problem, tempSchedule, m);
+                    }
+                    cost.updateTardiness();
+                    cost.updateMakeSpan();
+
+                    Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, tempSchedule);
                 }
 
                 cost = Verifier.calcSolutionCostFromAssignment(problem, tempSchedule);
