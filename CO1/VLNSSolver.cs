@@ -43,7 +43,7 @@ namespace CO1
 
             List<WeightedItem<int>> weightedMachinesList = new List<WeightedItem<int>>();
 
-            for (int nrOfMachinesToSolve = 3; nrOfMachinesToSolve <= problem.machines / 2; nrOfMachinesToSolve++)
+            for (int nrOfMachinesToSolve = 2; nrOfMachinesToSolve <= problem.machines - 1; nrOfMachinesToSolve++)
             {
                 for (int m = 0; m < schedules.Length; m++)
                 {
@@ -51,14 +51,13 @@ namespace CO1
                         weightedMachinesList.Add(new WeightedItem<int>(m, cost.tardinessPerMachine[m]));
                 }
 
-                //int millisecondsTime = 30000 / (problem.machines / nrOfMachinesToSolve);
-                int millisecondsTime = 30000 / (problem.machines / 3);
+                int millisecondsTime = 30000 / (problem.machines / nrOfMachinesToSolve);
 
 
                 while (weightedMachinesList.Count > 1)
                 {
                     List<int> machingesToChange = new List<int>();
-                    for (int selector = 0; selector < 3 && weightedMachinesList.Count > 1; selector++)
+                    for (int selector = 0; selector < nrOfMachinesToSolve && weightedMachinesList.Count > 1; selector++)
                     {
                         int selectedMachine = WeightedItem<int>.ChooseAndRemove(weightedMachinesList);
                         machingesToChange.Add(selectedMachine);

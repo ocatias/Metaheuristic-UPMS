@@ -60,19 +60,26 @@ namespace CO1
             setInitialValues(jobsInclDummy, model, X, C, T, Cmax, Y);
 
             model.Set("TimeLimit", (milliseconds / 1000.0).ToString());
-            model.Set("OutputFlag", "1");
+
+            model.Set("OutputFlag", "0");
+
+            model.Update();
 
             Console.WriteLine("Now solving.");
 
             //Console.WriteLine("Start solution value " + Math.Floor(model.ObjVal / V).ToString());
 
             model.Optimize();
+
+            if (model.Status == 3)
+                Console.WriteLine("----------------------------------");
+
             List<int>[] newSchedule = calculateMachineAsssignmentFromModel(jobsInclDummy, X, schedule);
 
             Console.WriteLine(String.Format(machinesToChange.Count.ToString() + " machine model tardiness {0} -> {1}", tardinessBefore, Math.Floor(model.ObjVal / V)));
 
             if (tardinessBefore < Math.Floor(model.ObjVal / V))
-                throw new Exception("AAAH!");
+                Console.WriteLine("___________________");
 
             model.Dispose();
             return newSchedule;
@@ -81,16 +88,14 @@ namespace CO1
 
         private void setInitialValues(int jobsInclDummy, GRBModel model, GRBVar[,,] X, GRBVar[] C, GRBVar[] T, GRBVar Cmax, GRBVar[,] Y)
         {
-            return;
-
             long maxMakeSpan = 0;
+            long tardiness = 0;
 
             foreach (int machine in machinesToChange)
             {
                 if (schedule[machine].Count == 0)
                     continue;
 
-                long tardiness = 0;
                 long currMakeSpan = 0, currTimeOnMachine = 0;
 
                 // Is true if we should not edit this machine
