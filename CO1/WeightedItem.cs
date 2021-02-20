@@ -41,7 +41,7 @@ namespace CO1
             return chosen.value;
         }
 
-        public static T ChooseAndRemove(List<WeightedItem<T>> items)
+        public static T ChooseAndRemove(ref List<WeightedItem<T>> items)
         {
             WeightedItem<T> chosen = ChooseWeightedItem(items);
             if (chosen == null) throw new Exception("No item chosen - there seems to be a problem with the probability distribution.");

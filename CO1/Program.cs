@@ -17,7 +17,7 @@ namespace CO1
             //string pathRealLife = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\real-life";
 
             // Big files:
-            List<string> allFilesInDirectory = new List<string>() { "s_23-148-160_1.max" };
+            List<string> allFilesInDirectory = new List<string>() { "t_26-400-400_1.max" };
            
 
 

@@ -61,6 +61,9 @@ namespace CO1
 
             solver.Optimize();
 
+            if (solver.Status == 2)
+                Console.WriteLine("-> OPTIMAL SOLUTION");
+
             List<int>[] machinesOrder = calculateMachineAsssignmentFromModel(jobsInclDummy, X);
 
             Console.WriteLine(String.Format("1 machine model tardiness {0} -> {1}", tardinessBefore, solver.ObjVal));

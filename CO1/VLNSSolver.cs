@@ -1,6 +1,7 @@
 ﻿using Gurobi;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace CO1
@@ -8,6 +9,9 @@ namespace CO1
     public class VLNSSolver
     {
         ProblemInstance problem;
+
+        private float probabilityOptimizeMakespan = 0f;
+
         public VLNSSolver(ProblemInstance problem)
         {
             this.problem = problem;
@@ -19,6 +23,8 @@ namespace CO1
             // Create an empty environment, set options and start
             GRBEnv env = new GRBEnv(true);
             env.Start();
+
+            Random rnd = new Random();
 
             List<int>[] schedules = Heuristics.createInitialSchedules(problem);
 
@@ -41,10 +47,12 @@ namespace CO1
             cost = Verifier.calcSolutionCostFromAssignment(problem, tempSchedule);
             Console.WriteLine(String.Format("Best Result from SM: ({0},{1})", cost.tardiness, cost.makeSpan));
 
-            List<WeightedItem<int>> weightedMachinesList = new List<WeightedItem<int>>();
+            List<WeightedItem<int>> weightedMachinesList;
 
             for (int nrOfMachinesToSolve = 2; nrOfMachinesToSolve <= problem.machines - 1; nrOfMachinesToSolve++)
             {
+                weightedMachinesList = new List<WeightedItem<int>>();
+
                 for (int m = 0; m < schedules.Length; m++)
                 {
                     if (schedules[m].Count > 1 && cost.tardinessPerMachine[m] > 0)
@@ -57,18 +65,23 @@ namespace CO1
                 while (weightedMachinesList.Count > 1)
                 {
                     List<int> machingesToChange = new List<int>();
-                    for (int selector = 0; selector < nrOfMachinesToSolve && weightedMachinesList.Count > 1; selector++)
+                    for (int selector = 0; selector < nrOfMachinesToSolve && weightedMachinesList.Count >= 1; selector++)
                     {
-                        int selectedMachine = WeightedItem<int>.ChooseAndRemove(weightedMachinesList);
+                        int selectedMachine = WeightedItem<int>.ChooseAndRemove(ref weightedMachinesList);
                         machingesToChange.Add(selectedMachine);
                     }
+
+                    if (machingesToChange.GroupBy(j => j).Where(g => g.Count() > 1).Count() > 0)
+                        Console.WriteLine("FOUND IT");
 
                     long tardinessBefore = 0;
                     foreach (int m in machingesToChange)
                         tardinessBefore += cost.tardinessPerMachine[m];
 
-                    TwoMachineModel tm = new TwoMachineModel(problem, env, tempSchedule, machingesToChange);
-                    tempSchedule = tm.solveModel(millisecondsTime, tardinessBefore);
+                    
+
+                    MultiMachineModel tm = new MultiMachineModel(problem, env, tempSchedule, machingesToChange);
+                    tempSchedule = tm.solveModel(millisecondsTime, tardinessBefore, !(rnd.NextDouble() < probabilityOptimizeMakespan));
 
                     foreach (int m in machingesToChange)
                     {

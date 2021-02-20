@@ -6,7 +6,7 @@ using System.Text;
 
 namespace CO1
 {
-    public class TwoMachineModel
+    public class MultiMachineModel
     {
         private GRBEnv env;
         private ProblemInstance problem;
@@ -18,7 +18,7 @@ namespace CO1
 
         private List<int> machinesToChange;
 
-        public TwoMachineModel(ProblemInstance problem, GRBEnv env, List<int>[] schedule, List<int> machinesToChange)
+        public MultiMachineModel(ProblemInstance problem, GRBEnv env, List<int>[] schedule, List<int> machinesToChange)
         {
             this.env = env;
             this.problem = problem;
@@ -37,9 +37,13 @@ namespace CO1
             scheduleInitialCombinedWithDummy.Insert(0, 0);
         }
 
-        public List<int>[] solveModel(int milliseconds, long tardinessBefore)
+        public List<int>[] solveModel(int milliseconds, long tardinessBefore, bool optimizePrimarilyForTardiness = true)
         {
-            Console.WriteLine("Solver runtime: " + milliseconds/1000 + " sec");
+            Console.WriteLine("Solver runtime: " + milliseconds/1000 + " sec, #machines " + machinesToChange.Count.ToString());
+
+            if (!optimizePrimarilyForTardiness)
+                Console.WriteLine("Optimizing for makespan");
+
 
             int jobsInclDummy = this.problem.jobs + 1;
             GRBModel model = new GRBModel(env);
@@ -55,7 +59,7 @@ namespace CO1
 
             initializeVariables(jobsInclDummy, model, X, C, T, Cmax, Y);
             setConstraints(jobsInclDummy, model, X, C, T, Cmax, Y, V);
-            setFunctionToMinimize(jobsInclDummy, model, X, C, T, Cmax, Y, V);
+            setFunctionToMinimize(jobsInclDummy, model, X, C, T, Cmax, Y, V, optimizePrimarilyForTardiness);
 
             setInitialValues(jobsInclDummy, model, X, C, T, Cmax, Y);
 
@@ -64,8 +68,6 @@ namespace CO1
             model.Set("OutputFlag", "0");
 
             model.Update();
-
-            Console.WriteLine("Now solving.");
 
             //Console.WriteLine("Start solution value " + Math.Floor(model.ObjVal / V).ToString());
 
@@ -76,10 +78,13 @@ namespace CO1
 
             List<int>[] newSchedule = calculateMachineAsssignmentFromModel(jobsInclDummy, X, schedule);
 
-            Console.WriteLine(String.Format(machinesToChange.Count.ToString() + " machine model tardiness {0} -> {1}", tardinessBefore, Math.Floor(model.ObjVal / V)));
+            if (model.Status == 2)
+                Console.WriteLine("-> OPTIMAL SOLUTION");
 
-            if (tardinessBefore < Math.Floor(model.ObjVal / V))
-                Console.WriteLine("___________________");
+            Console.WriteLine(String.Format("tardiness {0} -> {1}", tardinessBefore, Math.Floor(model.ObjVal / V)));
+
+            //if (tardinessBefore < Math.Floor(model.ObjVal / V))
+            //    Console.WriteLine("___________________");
 
             model.Dispose();
             return newSchedule;
@@ -98,10 +103,6 @@ namespace CO1
 
                 long currMakeSpan = 0, currTimeOnMachine = 0;
 
-                // Is true if we should not edit this machine
-                //bool isAFixedMachine = false;
-                bool isAFixedMachine = !machinesToChange.Contains(machine);
-
                 currMakeSpan += problem.getSetupTimeForJob(0, schedule[machine][0] + 1, machine);
                 currMakeSpan += problem.processingTimes[schedule[machine][0], machine];
 
@@ -114,14 +115,6 @@ namespace CO1
                 T[schedule[machine][0]+1].Start = currTardinessForThisJob;
                 C[schedule[machine][0] + 1].Start = currTimeOnMachine;
 
-                // If we shouldn't edit this machine then we fix the variables to a constant value by setting upper bound equal to the lower bound
-                if(isAFixedMachine)
-                {
-                    T[schedule[machine][0] + 1].UB = currTardinessForThisJob;
-                    T[schedule[machine][0] + 1].LB = currTardinessForThisJob;
-                    C[schedule[machine][0] + 1].UB = currTimeOnMachine;
-                    C[schedule[machine][0] + 1].LB = currTimeOnMachine;
-                }
 
                 foreach (int j in scheduleInitialCombinedWithDummy)
                 {
@@ -129,13 +122,6 @@ namespace CO1
                     {
                         int xValue = j != 0 || m != machine ? 0 : 1;
                         X[j, schedule[machine][0] + 1, m].Start = xValue;
-
-                        if(isAFixedMachine)
-                        {
-                            X[j, schedule[machine][0] + 1, m].UB = xValue;
-                            X[j, schedule[machine][0] + 1, m].LB = xValue;
-                        }
-
                     }
                 }
 
@@ -143,12 +129,7 @@ namespace CO1
                 {
                     int yValue = m != machine ? 0 : 1;
                     Y[schedule[machine][0] + 1, m].Start = yValue;
-
-                    if(isAFixedMachine)
-                    {
-                        Y[schedule[machine][0] + 1, m].UB = yValue;
-                        Y[schedule[machine][0] + 1, m].LB = yValue;
-                    }
+                    //Console.WriteLine("Y_" + (schedule[machine][0] + 1).ToString() + ", " + m.ToString() + ": " + yValue.ToString());
                 }
 
                 for (int i = 1; i < schedule[machine].Count; i++)
@@ -165,26 +146,12 @@ namespace CO1
                     T[schedule[machine][i] + 1].Start = currTardinessForThisJob;
                     C[schedule[machine][i] + 1].Start = currTimeOnMachine;
 
-                    if (isAFixedMachine)
-                    {
-                        T[schedule[machine][i] + 1].UB = currTardinessForThisJob;
-                        T[schedule[machine][i] + 1].LB = currTardinessForThisJob;
-                        C[schedule[machine][i] + 1].UB = currTimeOnMachine;
-                        C[schedule[machine][i] + 1].LB = currTimeOnMachine;
-                    }
-
                     foreach (int j in scheduleInitialCombinedWithDummy)
                     {
                         foreach (int m in machinesToChange)
                         {
                             int xValue = j != schedule[machine][i - 1] + 1 || m != machine ? 0 : 1;
                             X[j, schedule[machine][i] + 1, m].Start = xValue;
-
-                            if (isAFixedMachine)
-                            {
-                                X[j, schedule[machine][i] + 1, m].UB = xValue;
-                                X[j, schedule[machine][i] + 1, m].LB = xValue;
-                            }
                         }
                     }
 
@@ -193,12 +160,8 @@ namespace CO1
                     {
                         int yValue = m != machine ? 0 : 1;
                         Y[schedule[machine][i] + 1, m].Start = yValue;
+                        //Console.WriteLine("Y_" + (schedule[machine][i] + 1).ToString() + ", " + m.ToString() + ": " + yValue.ToString());
 
-                        if (isAFixedMachine)
-                        {
-                            Y[schedule[machine][i] + 1, m].UB = yValue;
-                            Y[schedule[machine][i] + 1, m].LB = yValue;
-                        }
                     }
                 }
 
@@ -385,15 +348,22 @@ namespace CO1
             model.AddConstr(C[0] == 0, "C23");
         }
 
-        private void setFunctionToMinimize(int jobsInclDummy, GRBModel model, GRBVar[,,] X, GRBVar[] C, GRBVar[] T, GRBVar Cmax, GRBVar[,] Y, int V)
+        private void setFunctionToMinimize(int jobsInclDummy, GRBModel model, GRBVar[,,] X, GRBVar[] C, GRBVar[] T, GRBVar Cmax, GRBVar[,] Y, int V, bool optimizePrimarilyForTardiness)
         {
             // MINIMISE (13)
             GRBLinExpr functionToMinimise = T[scheduleInitialCombinedWithoutDummy[0]] * V;
             for (int i = 1; i < scheduleInitialCombinedWithoutDummy.Count; i++)
             {
-                functionToMinimise += T[scheduleInitialCombinedWithoutDummy[i]] * V;
+                if (optimizePrimarilyForTardiness)
+                    functionToMinimise += T[scheduleInitialCombinedWithoutDummy[i]] * V;
+                else
+                    functionToMinimise += T[scheduleInitialCombinedWithoutDummy[i]];
             }
-            functionToMinimise += Cmax;
+            if (optimizePrimarilyForTardiness)
+                functionToMinimise += Cmax;
+            else
+                functionToMinimise += Cmax * V;
+
             model.SetObjective(functionToMinimise, GRB.MINIMIZE);
         }
 
