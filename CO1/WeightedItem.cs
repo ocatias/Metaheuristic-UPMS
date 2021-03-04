@@ -48,5 +48,11 @@ namespace CO1
             items.Remove(chosen);
             return chosen.value;
         }
+
+        public static void Remove(ref List<WeightedItem<T>> items, T item)
+        {
+            WeightedItem<T> weightedItem = items.Where(i => i.value.Equals(item)).First();
+            items.Remove(weightedItem);
+        }
     }
 }

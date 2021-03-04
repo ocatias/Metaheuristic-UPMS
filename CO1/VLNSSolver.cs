@@ -24,6 +24,9 @@ namespace CO1
 
         public void solve(int runtimeInSeconds, string filepathResultInfo, string filepathMachineSchedule)
         {
+            DateTime startTime = DateTime.UtcNow;
+
+
             // Create an empty environment, set options and start
             GRBEnv env = new GRBEnv(true);
             env.Start();
@@ -39,78 +42,172 @@ namespace CO1
                 scheduleInfo.Add(new List<ScheduleForDifferentMachineInfo>());
                 updateScheduleInfo(m, Verifier.calcuTdMsScheduleInfoForSingleMachine(problem, schedules, m).Item3);
             }
-
-
             Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
-
             Console.WriteLine(String.Format("Best Result from Heuristic: ({0},{1})", cost.tardiness, cost.makeSpan));
 
+            solveSmallAmounts(startTime, ref schedules, env, ref cost, rnd, runtimeInSeconds);
 
 
-            List<int>[] tempSchedule = schedules;
+            Console.WriteLine(String.Format("Best Result from VLNS: ({0},{1})", cost.tardiness, cost.makeSpan));
+            Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
+            ResultExport.storeMachineSchedule(filepathMachineSchedule, problem, schedules);
+        }
+
+
+        // First optimize only one machine, then two and so on;
+        private void solveRisingFalling(DateTime startTime, ref List<int>[] schedules, GRBEnv env, ref SolutionCost cost, Random rnd, int runtimeInSeconds)
+        {
+            double timeRemainingInMS = runtimeInSeconds*1000 - DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
+
             List<int> changedMachines = new List<int>();
 
             for (int singleMachineIdx = 0; singleMachineIdx < problem.machines; singleMachineIdx++)
             {
                 SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
-                tempSchedule[singleMachineIdx] = sm.solveModel((int)(runtimeInSeconds * 1000.0 / (problem.machines)), cost.tardinessPerMachine[singleMachineIdx]);
+                schedules[singleMachineIdx] = sm.solveModel((int)(timeRemainingInMS / 10 / problem.machines), cost.tardinessPerMachine[singleMachineIdx]);
                 changedMachines.Add(singleMachineIdx);
             }
 
-            cost = Verifier.calcSolutionCostFromAssignment(problem, tempSchedule);
-            Console.WriteLine(String.Format("Best Result from SM: ({0},{1})", cost.tardiness, cost.makeSpan));
+            cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
+            Console.WriteLine(String.Format("Best Result from VLNS: ({0},{1})", cost.tardiness, cost.makeSpan));
 
-            //MachineToOptimizeHeuristic machineSelector = new SelectByTardiness();
-            MachineToOptimizeHeuristic machineSelector = new SelectByFindingBigProblems();
+            MachineToOptimizeHeuristic machineSelector = new SelectByTardiness();
+            //MachineToOptimizeHeuristic machineSelector = new SelectByFindingBigProblems();
+
+            List<int> nrMachinesToSolveList = new List<int>();
+
+            for (int i = 2; i <= problem.machines; i++)
+                nrMachinesToSolveList.Add(i);
+
+            for (int i = problem.machines - 1; i > 1; i--)
+                nrMachinesToSolveList.Add(i);
+
+            timeRemainingInMS = runtimeInSeconds * 1000 - DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
+            double timePerNr = timeRemainingInMS * 0.9 / (nrMachinesToSolveList.Count);
 
 
-            for (int nrOfMachinesToSolve = 2; nrOfMachinesToSolve <= problem.machines; nrOfMachinesToSolve++)
+            foreach (int nrOfMachinesToSolve in nrMachinesToSolveList)
             {
-                int millisecondsTime = 30000 / (problem.machines / nrOfMachinesToSolve);
+                int millisecondsTime = (int)Math.Ceiling(timePerNr / (problem.machines / nrOfMachinesToSolve));
 
                 machineSelector.fillInfo(cost, schedules, scheduleInfo);
-                
+
                 while (machineSelector.areMachinesLeft())
                 {
                     List<int> machingesToChange = machineSelector.selectMachines(nrOfMachinesToSolve);
 
                     long tardinessBefore = 0;
                     foreach (int m in machingesToChange)
-                        tardinessBefore += cost.tardinessPerMachine[m]; 
+                        tardinessBefore += cost.tardinessPerMachine[m];
 
-                    MultiMachineModel tm = new MultiMachineModel(problem, env, tempSchedule, machingesToChange);
-                    tempSchedule = tm.solveModel(millisecondsTime, tardinessBefore, !(rnd.NextDouble() < probabilityOptimizeMakespan));
+                    MultiMachineModel tm = new MultiMachineModel(problem, env, schedules, machingesToChange);
+                    schedules = tm.solveModel(millisecondsTime, tardinessBefore, !(rnd.NextDouble() < probabilityOptimizeMakespan));
 
                     foreach (int m in machingesToChange)
                     {
                         List<Tuple<int, long>> scheduleInfoForMachine;
-                        (cost.tardinessPerMachine[m], cost.makeSpanPerMachine[m], scheduleInfoForMachine) = Verifier.calcuTdMsScheduleInfoForSingleMachine(problem, tempSchedule, m);
+                        (cost.tardinessPerMachine[m], cost.makeSpanPerMachine[m], scheduleInfoForMachine) = Verifier.calcuTdMsScheduleInfoForSingleMachine(problem, schedules, m);
                         updateScheduleInfo(m, scheduleInfoForMachine);
                     }
                     cost.updateTardiness();
                     cost.updateMakeSpan();
 
-                    Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, tempSchedule);
+                    Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
                 }
 
-                cost = Verifier.calcSolutionCostFromAssignment(problem, tempSchedule);
-                Console.WriteLine(String.Format("Best Result from VLNS: ({0},{1})", cost.tardiness, cost.makeSpan));
-            
+                cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
+
             }
 
             for (int singleMachineIdx = 0; singleMachineIdx < problem.machines; singleMachineIdx++)
             {
-                SingleMachineModel sm = new SingleMachineModel(problem, env, tempSchedule[singleMachineIdx], singleMachineIdx);
-                tempSchedule[singleMachineIdx] = sm.solveModel((int)(runtimeInSeconds * 1000.0 / (problem.machines)), cost.tardinessPerMachine[singleMachineIdx]);
+                SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
+                schedules[singleMachineIdx] = sm.solveModel((int)(timeRemainingInMS / problem.machines), cost.tardinessPerMachine[singleMachineIdx]);
                 changedMachines.Add(singleMachineIdx);
             }
 
-            cost = Verifier.calcSolutionCostFromAssignment(problem, tempSchedule);
-            Console.WriteLine(String.Format("Best Result from SM: ({0},{1})", cost.tardiness, cost.makeSpan));
+            cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
+        }
+
+        private void solveSmallAmounts(DateTime startTime, ref List<int>[] schedules, GRBEnv env, ref SolutionCost cost, Random rnd, int runtimeInSeconds)
+        {
+            int nrIterations = 30;
+
+            double timeRemainingInMS = runtimeInSeconds * 1000 - DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
+
+            List<int> changedMachines = new List<int>();
+
+            for (int singleMachineIdx = 0; singleMachineIdx < problem.machines; singleMachineIdx++)
+            {
+                SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
+                schedules[singleMachineIdx] = sm.solveModel((int)(timeRemainingInMS / 10 / problem.machines), cost.tardinessPerMachine[singleMachineIdx]);
+                changedMachines.Add(singleMachineIdx);
+            }
+
+            cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
             Console.WriteLine(String.Format("Best Result from VLNS: ({0},{1})", cost.tardiness, cost.makeSpan));
 
-            ResultExport.storeMachineSchedule(filepathMachineSchedule, problem, schedules);
+            MachineToOptimizeHeuristic machineSelector1 = new SelectByTardiness();
+            MachineToOptimizeHeuristic machineSelector2 = new SelectByFindingBigProblems();
+
+            while (DateTime.UtcNow.Subtract(startTime).TotalMilliseconds < timeRemainingInMS)
+            {
+                double randomDouble = rnd.NextDouble();
+                int nrOfMachinesToSolve;
+
+                if (randomDouble >= 0.8)
+                {
+
+                    continue;
+                }
+                else  if(randomDouble < 0.8)
+                {
+                    nrOfMachinesToSolve = 2;
+                }
+                else
+                {
+                    nrOfMachinesToSolve = 3;
+                }
+
+                int millisecondsTime = (int)Math.Ceiling(timeRemainingInMS / nrIterations);
+
+                MachineToOptimizeHeuristic machineSelector;
+
+                if (rnd.NextDouble() < 0.7)
+                    machineSelector = machineSelector1;
+                else
+                    machineSelector = machineSelector2;
+
+                machineSelector.fillInfo(cost, schedules, scheduleInfo);
+
+                while (machineSelector.areMachinesLeft())
+                {
+                    List<int> machingesToChange = machineSelector.selectMachines(nrOfMachinesToSolve);
+
+                    long tardinessBefore = 0;
+                    foreach (int m in machingesToChange)
+                        tardinessBefore += cost.tardinessPerMachine[m];
+
+                    MultiMachineModel tm = new MultiMachineModel(problem, env, schedules, machingesToChange);
+                    schedules = tm.solveModel(millisecondsTime, tardinessBefore, !(rnd.NextDouble() < probabilityOptimizeMakespan));
+
+                    foreach (int m in machingesToChange)
+                    {
+                        List<Tuple<int, long>> scheduleInfoForMachine;
+                        (cost.tardinessPerMachine[m], cost.makeSpanPerMachine[m], scheduleInfoForMachine) = Verifier.calcuTdMsScheduleInfoForSingleMachine(problem, schedules, m);
+                        updateScheduleInfo(m, scheduleInfoForMachine);
+                    }
+                    cost.updateTardiness();
+                    cost.updateMakeSpan();
+
+                    Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
+                }
+
+                cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
+
+            }
         }
+
 
         // Update the schedule info for a given machine 
         // note that if multiple machines change then this needs to be called for every single one of them otherwise the data becomes inconsistent

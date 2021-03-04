@@ -17,8 +17,8 @@ namespace CO1
             //string pathRealLife = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\real-life";
 
             // Big files:
-            List<string> allFilesInDirectory = new List<string>() { "t_3-114-240_1.max" };
-           
+            List<string> allFilesInDirectory = new List<string>() { "t_12-18-100_1.max" };
+
 
 
 
@@ -30,8 +30,10 @@ namespace CO1
 
             //allFilesInDirectory = allFilesInDirectory.OrderBy(x => Guid.NewGuid()).ToList();
 
-            runVLNS(30, 1, pathTraining, allFilesInDirectory, "1802SingleMachineOpt");
+            runVLNS(200, 1, pathTraining, allFilesInDirectory, "0403_VLNS");
             //runSimulatedAnnealing(60, 1, pathValidation, allFilesInDirectory, "2801CompareToMax(Seq)");
+
+            //runLinearModels("0403_LM");
         }
 
         public static void runVLNS(int secondsPerRun, int repeats, string path, List<string> filenames, string experimentName)
@@ -102,7 +104,7 @@ namespace CO1
         {
             string path = Environment.GetEnvironmentVariable("ValidationDataPath");
             //List<string> realLifeDataFileNames = new List<string> { "p_9-180-180_1.max", "t_3-12-200_1.max", "p_15-60-60_1.max", "p_18-80-80_2.max", "p_3-17-20_1.max", "s_1-3-100_1.max", };
-            List<string> realLifeDataFileNames = new List<string> { "p_3-17-20_1.max" };
+            List<string> realLifeDataFileNames = new List<string> { "t_10-24-40_1.max" };
 
             Console.WriteLine("Working on these problems:");
             foreach (string filename in realLifeDataFileNames)
@@ -118,7 +120,7 @@ namespace CO1
                 try
                 {
                     LinearModel linearModel = new LinearModel(problem);
-                    linearModel.createModel(30, outputFilePath, outputFilePath2);
+                    linearModel.createModel(1800, outputFilePath, outputFilePath2);
                 }
                 catch (Exception e)
                 {

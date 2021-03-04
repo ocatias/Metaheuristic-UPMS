@@ -7,6 +7,7 @@ namespace CO1.MachineFinderHeuristics
 {
     class SelectByFindingBigProblems : MachineToOptimizeHeuristic
     {
+        List<WeightedItem<int>> machinesWeighted = new List<WeightedItem<int>>();
         List<List<ScheduleForDifferentMachineInfo>> scheduleInfo;
         List<Tuple<int, long>> machineTardinessList = new List<Tuple<int, long>>();
 
@@ -33,10 +34,11 @@ namespace CO1.MachineFinderHeuristics
 
             while(machinesSelected.Count < nrToSelectAtMost && machineTardinessList.Count > 0)
             {
-                double scoreBest = double.NegativeInfinity;
-                int machineBest = -1;
-                int machineBestIdx = -1;
-                for(int i = 0; i < machineTardinessList.Count; i++)
+                double scoreBest = scheduleInfo[machinesSelected[0]][machineTardinessList[0].Item1].getNrTardyJobs();
+                int machineBest = machineTardinessList[0].Item1;
+                int machineBestIdx = 0;
+
+                for(int i = 1; i < machineTardinessList.Count; i++)
                 {
                     if (i == machinesSelected[0])
                         continue;
