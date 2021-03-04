@@ -1,4 +1,4 @@
-﻿using CO1.MachineToOptimizeHeuristics;
+﻿using CO1.MachineFinderHeuristics;
 using Gurobi;
 using System;
 using System.Collections.Generic;
@@ -53,16 +53,18 @@ namespace CO1
             for (int singleMachineIdx = 0; singleMachineIdx < problem.machines; singleMachineIdx++)
             {
                 SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
-                tempSchedule[singleMachineIdx] = sm.solveModel((int)(runtimeInSeconds*1000.0/(problem.machines)), cost.tardinessPerMachine[singleMachineIdx]);
+                tempSchedule[singleMachineIdx] = sm.solveModel((int)(runtimeInSeconds * 1000.0 / (problem.machines)), cost.tardinessPerMachine[singleMachineIdx]);
                 changedMachines.Add(singleMachineIdx);
             }
 
             cost = Verifier.calcSolutionCostFromAssignment(problem, tempSchedule);
             Console.WriteLine(String.Format("Best Result from SM: ({0},{1})", cost.tardiness, cost.makeSpan));
 
-            MachineToOptimizeHeuristic machineSelector = new SelectByTardiness();
+            //MachineToOptimizeHeuristic machineSelector = new SelectByTardiness();
+            MachineToOptimizeHeuristic machineSelector = new SelectByFindingBigProblems();
 
-            for (int nrOfMachinesToSolve = 2; nrOfMachinesToSolve <= problem.machines - 1; nrOfMachinesToSolve++)
+
+            for (int nrOfMachinesToSolve = 2; nrOfMachinesToSolve <= problem.machines; nrOfMachinesToSolve++)
             {
                 int millisecondsTime = 30000 / (problem.machines / nrOfMachinesToSolve);
 
@@ -70,11 +72,7 @@ namespace CO1
                 
                 while (machineSelector.areMachinesLeft())
                 {
-                    List<int> machingesToChange = new List<int>();
-                    for (int selector = 0; selector < nrOfMachinesToSolve && machineSelector.isMachineLeft(); selector++)
-                    {
-                        machingesToChange.Add(machineSelector.selectMachine());
-                    }
+                    List<int> machingesToChange = machineSelector.selectMachines(nrOfMachinesToSolve);
 
                     long tardinessBefore = 0;
                     foreach (int m in machingesToChange)
@@ -97,9 +95,19 @@ namespace CO1
 
                 cost = Verifier.calcSolutionCostFromAssignment(problem, tempSchedule);
                 Console.WriteLine(String.Format("Best Result from VLNS: ({0},{1})", cost.tardiness, cost.makeSpan));
+            
             }
 
-            
+            for (int singleMachineIdx = 0; singleMachineIdx < problem.machines; singleMachineIdx++)
+            {
+                SingleMachineModel sm = new SingleMachineModel(problem, env, tempSchedule[singleMachineIdx], singleMachineIdx);
+                tempSchedule[singleMachineIdx] = sm.solveModel((int)(runtimeInSeconds * 1000.0 / (problem.machines)), cost.tardinessPerMachine[singleMachineIdx]);
+                changedMachines.Add(singleMachineIdx);
+            }
+
+            cost = Verifier.calcSolutionCostFromAssignment(problem, tempSchedule);
+            Console.WriteLine(String.Format("Best Result from SM: ({0},{1})", cost.tardiness, cost.makeSpan));
+            Console.WriteLine(String.Format("Best Result from VLNS: ({0},{1})", cost.tardiness, cost.makeSpan));
 
             ResultExport.storeMachineSchedule(filepathMachineSchedule, problem, schedules);
         }

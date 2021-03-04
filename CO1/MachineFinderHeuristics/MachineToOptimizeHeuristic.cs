@@ -2,16 +2,15 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace CO1.MachineToOptimizeHeuristics
+namespace CO1.MachineFinderHeuristics
 {
     public interface MachineToOptimizeHeuristic
     {
-        public int selectMachine();
+        public List<int> selectMachines(int nrToSelectAtMost);
 
         public void fillInfo(SolutionCost cost, List<int>[] schedules, List<List<ScheduleForDifferentMachineInfo>> scheduleInfo);
 
         public bool areMachinesLeft();
 
-        public bool isMachineLeft();
     }
 }
