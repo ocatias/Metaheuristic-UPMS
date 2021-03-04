@@ -17,7 +17,7 @@ namespace CO1
         double tMin = 6.73;
         double tMax = 2764.93;
         double temperature;
-        int maxStepsSinceLastImprovement = 5000000; //Afterwards we will try and solve a subproblem explicitly
+        //int maxStepsSinceLastImprovement = 5000000; //Afterwards we will try and solve a subproblem explicitly
 
         double probabilityInterMachineMove = 0.66;
         double probabilityShiftMove = 0.84;
@@ -28,7 +28,6 @@ namespace CO1
         public SimulatedAnnealingSolver(ProblemInstance problem)
         {
             this.problem = problem;
-
         }
 
         // Simmulated Annealing with Reheating
@@ -61,33 +60,33 @@ namespace CO1
             {
                 List<int>[] tempSchedule;
                 List<int> changedMachines;
-                if (stepsSinceLastImprovement < maxStepsSinceLastImprovement)
-                {
+                //if (stepsSinceLastImprovement < maxStepsSinceLastImprovement)
+                //{
                     (tempSchedule, changedMachines) = SimulatedAnnealingMoves.doSAStep(problem,  rnd, schedules, cost.makeSpanMachine,
                          probabilityTardynessGuideance, probabilityInterMachineMove, probabilityBlockMove, probabilityShiftMove, probabilityMakeSpanGuideance);
-                }
-                else
-                {
-                    tempSchedule = Helpers.cloneSchedule(schedules);
-                    stepsSinceLastImprovement = 0;
+                //}
+                //else
+                //{
+                //    tempSchedule = Helpers.cloneSchedule(schedules);
+                //    stepsSinceLastImprovement = 0;
 
 
-                    // Selected a machine with more than one job scheduled to it and a nonzero tardiness
-                    List<WeightedItem<int>> weightedMachinesList = new List<WeightedItem<int>>();
-                    for(int m = 0; m < schedules.Length; m++)
-                    {
-                        if (schedules[m].Count > 1 && cost.tardinessPerMachine[m] > 0)
-                            weightedMachinesList.Add(new WeightedItem<int>(m, cost.tardinessPerMachine[m]));
-                    }
+                //    // Selected a machine with more than one job scheduled to it and a nonzero tardiness
+                //    List<WeightedItem<int>> weightedMachinesList = new List<WeightedItem<int>>();
+                //    for(int m = 0; m < schedules.Length; m++)
+                //    {
+                //        if (schedules[m].Count > 1 && cost.tardinessPerMachine[m] > 0)
+                //            weightedMachinesList.Add(new WeightedItem<int>(m, cost.tardinessPerMachine[m]));
+                //    }
 
-                    int singleMachineIdx = WeightedItem<int>.Choose(weightedMachinesList);
+                //    int singleMachineIdx = WeightedItem<int>.Choose(weightedMachinesList);
 
 
 
-                    SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
-                    tempSchedule[singleMachineIdx] = sm.solveModel(1000, cost.tardinessPerMachine[singleMachineIdx]);
-                    changedMachines = new List<int>() { singleMachineIdx };
-                }
+                //    SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
+                //    tempSchedule[singleMachineIdx] = sm.solveModel(1000, cost.tardinessPerMachine[singleMachineIdx]);
+                //    changedMachines = new List<int>() { singleMachineIdx };
+                //}
 
                 currentStep++;
                 if ((currentStep / stepsBeforeCooling) > howOftenHaveWeCooled)

@@ -140,6 +140,7 @@ namespace CO1
                 }
             }
 
+            // ToDo: Replace this by directly looking up stuff, this is just horribly inefficient
             s = new int[jobs + 1, jobs + 1, machines];
             for (int i = 0; i < jobs + 1; i++)
             {

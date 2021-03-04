@@ -85,6 +85,44 @@ namespace CO1
             return (tardiness, currMakeSpan);
         }
 
+        // Returns (TardynessOnThisMachine, MakespanOnThisMachine, List<(Job, TardynessOfThisJob)>)
+        // Note: 0 is NOT a dummy job in the list
+        public static (long, long, List<Tuple<int, long>>) calcuTdMsScheduleInfoForSingleMachine(ProblemInstance problem, List<int>[] machinesOrder, int machine)
+        {
+            List<Tuple<int, long>> machineScheduleInfo = new List<Tuple<int, long>>();
+
+            long tardiness = 0;
+            long currMakeSpan = 0, currTimeOnMachine = 0;
+
+            if (machinesOrder[machine].Count == 0)
+                return (0, 0, null);
+
+            currMakeSpan += problem.getSetupTimeForJob(0, machinesOrder[machine][0] + 1, machine);
+            currMakeSpan += problem.processingTimes[machinesOrder[machine][0], machine];
+
+            currTimeOnMachine += problem.getSetupTimeForJob(0, machinesOrder[machine][0] + 1, machine);
+            currTimeOnMachine += problem.processingTimes[machinesOrder[machine][0], machine];
+            tardiness += (currTimeOnMachine - problem.dueDates[machinesOrder[machine][0]]) > 0 ? currTimeOnMachine - problem.dueDates[machinesOrder[machine][0]] : 0;
+
+            machineScheduleInfo.Add(new Tuple<int, long>(machinesOrder[machine][0], tardiness));
+
+            for (int i = 1; i < machinesOrder[machine].Count; i++)
+            {
+                currMakeSpan += problem.getSetupTimeForJob(machinesOrder[machine][i - 1] + 1, machinesOrder[machine][i] + 1, machine);
+                currMakeSpan += problem.processingTimes[machinesOrder[machine][i], machine];
+
+                currTimeOnMachine += problem.getSetupTimeForJob(machinesOrder[machine][i - 1] + 1, machinesOrder[machine][i] + 1, machine);
+                currTimeOnMachine += problem.processingTimes[machinesOrder[machine][i], machine];
+                tardiness += (currTimeOnMachine - problem.dueDates[machinesOrder[machine][i]]) > 0 ? currTimeOnMachine - problem.dueDates[machinesOrder[machine][i]] : 0;
+
+                machineScheduleInfo.Add(new Tuple<int, long>(machinesOrder[machine][i], currTimeOnMachine - problem.dueDates[machinesOrder[machine][i]]));
+            }
+
+            currMakeSpan += problem.getSetupTimeForJob(machinesOrder[machine][machinesOrder[machine].Count - 1] + 1, 0, machine);
+
+            return (tardiness, currMakeSpan, machineScheduleInfo);
+        }
+
 
 
         public static void verifyModelSolution(ProblemInstance problem, long tardinessFromModel, long makeSpanFromModel, List<int>[] machinesOrder)

@@ -1,4 +1,5 @@
-﻿using Gurobi;
+﻿using CO1.MachineToOptimizeHeuristics;
+using Gurobi;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +12,9 @@ namespace CO1
         ProblemInstance problem;
 
         private float probabilityOptimizeMakespan = 0f;
+
+        // How many jobs from firstList are tardy and can be put on the machine from secondList
+        private List<List<ScheduleForDifferentMachineInfo>> scheduleInfo = new List<List<ScheduleForDifferentMachineInfo>>();
 
         public VLNSSolver(ProblemInstance problem)
         {
@@ -30,9 +34,18 @@ namespace CO1
 
             SolutionCost cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
 
+            for(int m = 0; m < problem.machines; m++)
+            {
+                scheduleInfo.Add(new List<ScheduleForDifferentMachineInfo>());
+                updateScheduleInfo(m, Verifier.calcuTdMsScheduleInfoForSingleMachine(problem, schedules, m).Item3);
+            }
+
+
             Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
 
             Console.WriteLine(String.Format("Best Result from Heuristic: ({0},{1})", cost.tardiness, cost.makeSpan));
+
+
 
             List<int>[] tempSchedule = schedules;
             List<int> changedMachines = new List<int>();
@@ -47,45 +60,34 @@ namespace CO1
             cost = Verifier.calcSolutionCostFromAssignment(problem, tempSchedule);
             Console.WriteLine(String.Format("Best Result from SM: ({0},{1})", cost.tardiness, cost.makeSpan));
 
-            List<WeightedItem<int>> weightedMachinesList;
+            MachineToOptimizeHeuristic machineSelector = new SelectByTardiness();
 
             for (int nrOfMachinesToSolve = 2; nrOfMachinesToSolve <= problem.machines - 1; nrOfMachinesToSolve++)
             {
-                weightedMachinesList = new List<WeightedItem<int>>();
-
-                for (int m = 0; m < schedules.Length; m++)
-                {
-                    if (schedules[m].Count > 1 && cost.tardinessPerMachine[m] > 0)
-                        weightedMachinesList.Add(new WeightedItem<int>(m, cost.tardinessPerMachine[m]));
-                }
-
                 int millisecondsTime = 30000 / (problem.machines / nrOfMachinesToSolve);
 
-
-                while (weightedMachinesList.Count > 1)
+                machineSelector.fillInfo(cost, schedules, scheduleInfo);
+                
+                while (machineSelector.areMachinesLeft())
                 {
                     List<int> machingesToChange = new List<int>();
-                    for (int selector = 0; selector < nrOfMachinesToSolve && weightedMachinesList.Count >= 1; selector++)
+                    for (int selector = 0; selector < nrOfMachinesToSolve && machineSelector.isMachineLeft(); selector++)
                     {
-                        int selectedMachine = WeightedItem<int>.ChooseAndRemove(ref weightedMachinesList);
-                        machingesToChange.Add(selectedMachine);
+                        machingesToChange.Add(machineSelector.selectMachine());
                     }
-
-                    if (machingesToChange.GroupBy(j => j).Where(g => g.Count() > 1).Count() > 0)
-                        Console.WriteLine("FOUND IT");
 
                     long tardinessBefore = 0;
                     foreach (int m in machingesToChange)
-                        tardinessBefore += cost.tardinessPerMachine[m];
-
-                    
+                        tardinessBefore += cost.tardinessPerMachine[m]; 
 
                     MultiMachineModel tm = new MultiMachineModel(problem, env, tempSchedule, machingesToChange);
                     tempSchedule = tm.solveModel(millisecondsTime, tardinessBefore, !(rnd.NextDouble() < probabilityOptimizeMakespan));
 
                     foreach (int m in machingesToChange)
                     {
-                        (cost.tardinessPerMachine[m], cost.makeSpanPerMachine[m]) = Verifier.calculateTardMakeSpanMachineFromMachineAssignmentForSingleMachine(problem, tempSchedule, m);
+                        List<Tuple<int, long>> scheduleInfoForMachine;
+                        (cost.tardinessPerMachine[m], cost.makeSpanPerMachine[m], scheduleInfoForMachine) = Verifier.calcuTdMsScheduleInfoForSingleMachine(problem, tempSchedule, m);
+                        updateScheduleInfo(m, scheduleInfoForMachine);
                     }
                     cost.updateTardiness();
                     cost.updateMakeSpan();
@@ -101,5 +103,41 @@ namespace CO1
 
             ResultExport.storeMachineSchedule(filepathMachineSchedule, problem, schedules);
         }
+
+        // Update the schedule info for a given machine 
+        // note that if multiple machines change then this needs to be called for every single one of them otherwise the data becomes inconsistent
+        private void updateScheduleInfo(int machine, List<Tuple<int, long>> machineTardinessPairs)
+        {
+            List<ScheduleForDifferentMachineInfo> scheduleInfoForMachine = new List<ScheduleForDifferentMachineInfo>();
+            for (int m = 0; m < problem.machines; m++)
+            {
+                int nrTardyJobs = 0;
+                int nrPrematureJobs = 0;
+
+                if (m == machine)
+                {
+                    scheduleInfoForMachine.Add(null);
+                    continue;
+                }
+
+                foreach (Tuple<int, long> tuple in machineTardinessPairs)
+                {
+                    if (problem.processingTimes[tuple.Item1, m] >= 0)
+                    {
+                        if (tuple.Item2 > 0)
+                        {
+                            nrTardyJobs++;
+                        }
+                        else if (tuple.Item2 <= -50)
+                        {
+                            nrPrematureJobs++;
+                        }
+                    }
+                }
+                scheduleInfoForMachine.Add(new ScheduleForDifferentMachineInfo(nrTardyJobs, nrPrematureJobs));
+            }
+            scheduleInfo[machine] = scheduleInfoForMachine;
+        }
+
     }
 }
