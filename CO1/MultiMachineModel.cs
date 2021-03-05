@@ -66,6 +66,8 @@ namespace CO1
             model.Set("TimeLimit", (milliseconds / 1000.0).ToString());
 
             model.Set("OutputFlag", "0");
+            //model.Set("MIPGap", "0.05");
+            //var das = model.Parameters.MIPGap;
 
             model.Update();
 
