@@ -19,41 +19,39 @@ namespace CO1.MachineFinderHeuristics
         void MachineToOptimizeHeuristic.fillInfo(SolutionCost cost, List<int>[] schedules, List<List<ScheduleForDifferentMachineInfo>> scheduleInfo)
         {
             this.scheduleInfo = scheduleInfo;
-            for(int m = 0; m < cost.tardinessPerMachine.Count; m++)
+            for (int m = 0; m < cost.tardinessPerMachine.Count; m++)
             {
                 machineTardinessList.Add(new Tuple<int, long>(m, cost.tardinessPerMachine[m]));
             }
-            machineTardinessList = machineTardinessList.OrderByDescending(t =>t.Item2).ToList(); 
+            machineTardinessList = machineTardinessList.OrderByDescending(t => t.Item2).ToList();
+
+            for (int m = 0; m < schedules.Length; m++)
+            {
+                if (schedules[m].Count > 1 && cost.tardinessPerMachine[m] > 0)
+                    machinesWeighted.Add(new WeightedItem<int>(m, cost.tardinessPerMachine[m]));
+            }
         }
 
         List<int> MachineToOptimizeHeuristic.selectMachines(int nrToSelectAtMost)
         {
             List<int> machinesSelected = new List<int>();
-            machinesSelected.Add(machineTardinessList[0].Item1);
-            machineTardinessList.RemoveAt(0);
+            machinesSelected.Add(WeightedItem<int>.ChooseAndRemove(ref machinesWeighted));
+            
 
             while(machinesSelected.Count < nrToSelectAtMost && machineTardinessList.Count > 0)
             {
-                double scoreBest = scheduleInfo[machinesSelected[0]][machineTardinessList[0].Item1].getNrTardyJobs();
-                int machineBest = machineTardinessList[0].Item1;
-                int machineBestIdx = 0;
-
-                for(int i = 1; i < machineTardinessList.Count; i++)
+                List<WeightedItem<int>> machinesWeightedByApplicableTardyJobs = new List<WeightedItem<int>>();
+                for (int i = 1; i < machineTardinessList.Count; i++)
                 {
-                    if (i == machinesSelected[0])
+                    if (machineTardinessList[i].Item1 == machinesSelected[0])
                         continue;
-                    //double score = scheduleInfo[machinesSelected[0]][machineTardinessList[i].Item1].getNrPrematureJobs() + scheduleInfo[machinesSelected[0]][machineTardinessList[i].Item1].getNrTardyJobs();
-                    double score = scheduleInfo[machinesSelected[0]][machineTardinessList[i].Item1].getNrTardyJobs();
 
-                    if (score > scoreBest)
-                    {
-                        scoreBest = score;
-                        machineBest = machineTardinessList[i].Item1;
-                        machineBestIdx = i;
-                    }
+                    long score = scheduleInfo[machinesSelected[0]][machineTardinessList[i].Item1].getNrTardyJobs();
+                    machinesWeightedByApplicableTardyJobs.Add(new WeightedItem<int> (i, score));
                 }
-                machinesSelected.Add(machineBest);
-                machineTardinessList.RemoveAt(machineBestIdx);
+                int idx = WeightedItem<int>.ChooseAndRemove(ref machinesWeightedByApplicableTardyJobs);
+                machinesSelected.Add(machineTardinessList[idx].Item1);
+                machineTardinessList.RemoveAt(idx);
             }
 
 

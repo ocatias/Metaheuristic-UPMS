@@ -180,8 +180,8 @@ namespace CO1
 
                 machineSelector.fillInfo(cost, schedules, scheduleInfo);
 
-                while (machineSelector.areMachinesLeft())
-                {
+                //while (machineSelector.areMachinesLeft())
+                //{
                     List<int> machingesToChange = machineSelector.selectMachines(nrOfMachinesToSolve);
 
                     long tardinessBefore = 0;
@@ -189,6 +189,8 @@ namespace CO1
                         tardinessBefore += cost.tardinessPerMachine[m];
 
                     MultiMachineModel tm = new MultiMachineModel(problem, env, schedules, machingesToChange);
+
+                    List<int>[] schedulesBackup = Helpers.cloneSchedule(schedules);
                     schedules = tm.solveModel(millisecondsTime, tardinessBefore, !(rnd.NextDouble() < probabilityOptimizeMakespan));
 
                     foreach (int m in machingesToChange)
@@ -201,7 +203,7 @@ namespace CO1
                     cost.updateMakeSpan();
 
                     Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
-                }
+                //}
 
                 cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
 

@@ -76,7 +76,7 @@ namespace CO1
             if (model.Status == 3)
                 Console.WriteLine("----------------------------------");
 
-            List<int>[] newSchedule = calculateMachineAsssignmentFromModel(jobsInclDummy, X, schedule);
+            List<int>[] newSchedule = calculateMachineAsssignmentFromModel(jobsInclDummy, Y, X, schedule);
 
             if (model.Status == 2)
                 Console.WriteLine("-> OPTIMAL SOLUTION");
@@ -259,6 +259,7 @@ namespace CO1
             }
 
             // Constraint 17
+            Console.WriteLine("Constraint 17");
             foreach (int i in scheduleInitialCombinedWithoutDummy)
             {
                 foreach (int m in machinesToChange)
@@ -367,10 +368,23 @@ namespace CO1
             model.SetObjective(functionToMinimise, GRB.MINIMIZE);
         }
 
-        private List<int>[] calculateMachineAsssignmentFromModel(int jobsInclDummy, GRBVar[,,] X, List<int>[] schedule)
+        private List<int>[] calculateMachineAsssignmentFromModel(int jobsInclDummy, GRBVar[,] Y, GRBVar[,,] X, List<int>[] schedule)
         {
+            int count = 0;
+
             foreach (int m in machinesToChange)
                 schedule[m] = new List<int> { 0 };
+
+            //foreach (int i in scheduleInitialCombinedWithDummy)
+            //    foreach (int j in scheduleInitialCombinedWithDummy)
+            //        foreach (int m in machinesToChange)
+            //            if (X[i, j, m].X != 0)
+            //                Console.WriteLine("X_" + i.ToString() + ", " + j.ToString() + ", " + m.ToString() + " = " +  X[i, j, m].X.ToString());
+
+            //foreach (int i in scheduleInitialCombinedWithoutDummy)
+            //    foreach (int m in machinesToChange)
+            //        if (Y[i, m].X != 0)
+            //            Console.WriteLine("Y_" + i.ToString() + "," + m.ToString() + " = " + Y[i, m].X.ToString());
 
             foreach (int m in machinesToChange)
             {
@@ -385,7 +399,12 @@ namespace CO1
                 schedule[m].Remove(0);
                 for (int i = 0; i < schedule[m].Count; i++)
                     schedule[m][i] = schedule[m][i] - 1;
+
+                count += schedule[m].Count;
             }
+
+            if (count != scheduleInitialCombinedWithoutDummy.Count)
+                throw new Exception("Error schedules not fitting together");
 
             return schedule;
         }

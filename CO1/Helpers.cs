@@ -107,7 +107,7 @@ namespace CO1
         {
             foreach (int j in jobs)
             {
-                if (X[predecessor, j, machine].X == 1)
+                if (X[predecessor, j, machine].X >= 0.9)
                     return j;
             }
 
