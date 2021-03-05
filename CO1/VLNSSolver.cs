@@ -132,9 +132,9 @@ namespace CO1
         private void solveSmallAmounts(DateTime startTime, ref List<int>[] schedules, GRBEnv env, ref SolutionCost cost, Random rnd, int runtimeInSeconds)
         {
             int nrIterations = 30;
-            long weightOneOpti = 2;
-            long weightTwoOpti = 10;
-            long weightThreeOpti = 4;
+            long weightOneOpti = 5;
+            long weightTwoOpti = 20;
+            long weightThreeOpti = 8;
             long weightManyOpti = 1;
 
 
@@ -202,7 +202,7 @@ namespace CO1
 
                 int millisecondsTime = (int)Math.Ceiling(timeRemainingInMS / nrIterations);
 
-                
+
 
                 //while (machineSelector.areMachinesLeft())
                 //{
@@ -226,10 +226,10 @@ namespace CO1
                     cost.updateTardiness();
                     cost.updateMakeSpan();
 
-                    Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
+                    //Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
                 //}
 
-                cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
+                //cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
 
             }
         }

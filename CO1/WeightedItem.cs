@@ -19,6 +19,11 @@ namespace CO1
             this.weight = weight;
         }
 
+        public T getValue()
+        {
+            return value;
+        }
+
         private static WeightedItem<T> ChooseWeightedItem(List<WeightedItem<T>> items)
         {
             long cumulSum = 0;

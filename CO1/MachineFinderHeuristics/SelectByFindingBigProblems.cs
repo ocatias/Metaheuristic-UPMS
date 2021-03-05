@@ -13,7 +13,7 @@ namespace CO1.MachineFinderHeuristics
 
         bool MachineToOptimizeHeuristic.areMachinesLeft()
         {
-            return machineTardinessList.Count > 1;
+            return machineTardinessList.Count > 1 && machinesWeighted.Count >= 1;
         }
 
         void MachineToOptimizeHeuristic.fillInfo(SolutionCost cost, List<int>[] schedules, List<List<ScheduleForDifferentMachineInfo>> scheduleInfo)
@@ -39,6 +39,8 @@ namespace CO1.MachineFinderHeuristics
             List<int> machinesSelected = new List<int>();
             machinesSelected.Add(WeightedItem<int>.ChooseAndRemove(ref machinesWeighted));
 
+            machineTardinessList.Remove(machineTardinessList.First(t => t.Item1 == machinesSelected[0]));
+
             List<WeightedItem<int>> machinesWeightedByApplicableTardyJobs = new List<WeightedItem<int>>();
             for (int i = 1; i < machineTardinessList.Count; i++)
             {
@@ -49,13 +51,23 @@ namespace CO1.MachineFinderHeuristics
                 machinesWeightedByApplicableTardyJobs.Add(new WeightedItem<int>(i, score));
             }
 
+            List<int> indicesToDelete = new List<int>();
+
             while (machinesSelected.Count < nrToSelectAtMost && machinesWeightedByApplicableTardyJobs.Count > 0)
             {        
                 int idx = WeightedItem<int>.ChooseAndRemove(ref machinesWeightedByApplicableTardyJobs);
+                indicesToDelete.Add(idx);
                 machinesSelected.Add(machineTardinessList[idx].Item1);
             }
 
-
+            indicesToDelete = indicesToDelete.OrderByDescending(i => i).ToList();
+            foreach (int idx in indicesToDelete)
+            {
+                WeightedItem<int> machineToRemove = machinesWeighted.FirstOrDefault(t => t.getValue() == machineTardinessList[idx].Item1);
+                if (machineToRemove != null)
+                    machinesWeighted.Remove(machineToRemove);
+                machineTardinessList.RemoveAt(idx);
+            }
             return machinesSelected;
         }
     }

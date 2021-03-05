@@ -72,6 +72,7 @@ namespace CO1
             //Console.WriteLine("Start solution value " + Math.Floor(model.ObjVal / V).ToString());
 
             model.Optimize();
+            Console.WriteLine("MIP Gap: " + model.MIPGap.ToString() + "%");
 
             if (model.Status == 3)
                 Console.WriteLine("----------------------------------");
