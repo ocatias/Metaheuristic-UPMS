@@ -132,6 +132,12 @@ namespace CO1
         private void solveSmallAmounts(DateTime startTime, ref List<int>[] schedules, GRBEnv env, ref SolutionCost cost, Random rnd, int runtimeInSeconds)
         {
             int nrIterations = 30;
+            long weightOneOpti = 2;
+            long weightTwoOpti = 10;
+            long weightThreeOpti = 4;
+            long weightManyOpti = 1;
+
+
 
             double timeRemainingInMS = runtimeInSeconds * 1000 - DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
 
@@ -150,35 +156,53 @@ namespace CO1
             MachineToOptimizeHeuristic machineSelector1 = new SelectByTardiness();
             MachineToOptimizeHeuristic machineSelector2 = new SelectByFindingBigProblems();
 
+            List<WeightedItem<int>> choices = new List<WeightedItem<int>> { 
+                new WeightedItem<int>(1, weightOneOpti), new  WeightedItem<int>(2, weightTwoOpti), 
+                new WeightedItem<int>(3, weightThreeOpti), new WeightedItem<int>(0, weightManyOpti) };
+
             while (DateTime.UtcNow.Subtract(startTime).TotalMilliseconds < timeRemainingInMS)
             {
+
+                machineSelector1 = new SelectByTardiness();
+                new SelectByFindingBigProblems();
+
                 double randomDouble = rnd.NextDouble();
                 int nrOfMachinesToSolve;
 
-                if (randomDouble >= 0.8)
-                {
-
-                    continue;
-                }
-                else  if(randomDouble < 0.8)
-                {
-                    nrOfMachinesToSolve = 2;
-                }
-                else
-                {
-                    nrOfMachinesToSolve = 3;
-                }
-
-                int millisecondsTime = (int)Math.Ceiling(timeRemainingInMS / nrIterations);
+                int choice = WeightedItem<int>.Choose(choices);
 
                 MachineToOptimizeHeuristic machineSelector;
-
                 if (rnd.NextDouble() < 0.7)
                     machineSelector = machineSelector1;
                 else
                     machineSelector = machineSelector2;
 
                 machineSelector.fillInfo(cost, schedules, scheduleInfo);
+
+
+                switch (choice)
+                {
+                    case (1):
+                            int singleMachineIdx = machineSelector.selectMachines(1).First();
+                            SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
+                            schedules[singleMachineIdx] = sm.solveModel((int)(timeRemainingInMS / 10 / problem.machines), cost.tardinessPerMachine[singleMachineIdx]);
+                            cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
+                            Console.WriteLine(String.Format("Best Result from VLNS: ({0},{1})", cost.tardiness, cost.makeSpan));
+                            continue;
+                    case (2):
+                            nrOfMachinesToSolve = 2;
+                            break;
+                    case (3):
+                            nrOfMachinesToSolve = 3;
+                            break;
+                    default:
+                        nrOfMachinesToSolve = rnd.Next(4 >= problem.machines ? 4 : problem.machines, problem.machines + 1);
+                        break;
+                }
+
+                int millisecondsTime = (int)Math.Ceiling(timeRemainingInMS / nrIterations);
+
+                
 
                 //while (machineSelector.areMachinesLeft())
                 //{

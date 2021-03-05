@@ -259,7 +259,6 @@ namespace CO1
             }
 
             // Constraint 17
-            Console.WriteLine("Constraint 17");
             foreach (int i in scheduleInitialCombinedWithoutDummy)
             {
                 foreach (int m in machinesToChange)

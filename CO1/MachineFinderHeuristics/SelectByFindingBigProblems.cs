@@ -19,6 +19,8 @@ namespace CO1.MachineFinderHeuristics
         void MachineToOptimizeHeuristic.fillInfo(SolutionCost cost, List<int>[] schedules, List<List<ScheduleForDifferentMachineInfo>> scheduleInfo)
         {
             this.scheduleInfo = scheduleInfo;
+            machineTardinessList = new List<Tuple<int, long>>();
+            machinesWeighted = new List<WeightedItem<int>>();
             for (int m = 0; m < cost.tardinessPerMachine.Count; m++)
             {
                 machineTardinessList.Add(new Tuple<int, long>(m, cost.tardinessPerMachine[m]));
@@ -36,22 +38,21 @@ namespace CO1.MachineFinderHeuristics
         {
             List<int> machinesSelected = new List<int>();
             machinesSelected.Add(WeightedItem<int>.ChooseAndRemove(ref machinesWeighted));
-            
 
-            while(machinesSelected.Count < nrToSelectAtMost && machineTardinessList.Count > 0)
+            List<WeightedItem<int>> machinesWeightedByApplicableTardyJobs = new List<WeightedItem<int>>();
+            for (int i = 1; i < machineTardinessList.Count; i++)
             {
-                List<WeightedItem<int>> machinesWeightedByApplicableTardyJobs = new List<WeightedItem<int>>();
-                for (int i = 1; i < machineTardinessList.Count; i++)
-                {
-                    if (machineTardinessList[i].Item1 == machinesSelected[0])
-                        continue;
+                if (machineTardinessList[i].Item1 == machinesSelected[0])
+                    continue;
 
-                    long score = scheduleInfo[machinesSelected[0]][machineTardinessList[i].Item1].getNrTardyJobs();
-                    machinesWeightedByApplicableTardyJobs.Add(new WeightedItem<int> (i, score));
-                }
+                long score = scheduleInfo[machinesSelected[0]][machineTardinessList[i].Item1].getNrTardyJobs();
+                machinesWeightedByApplicableTardyJobs.Add(new WeightedItem<int>(i, score));
+            }
+
+            while (machinesSelected.Count < nrToSelectAtMost && machinesWeightedByApplicableTardyJobs.Count > 0)
+            {        
                 int idx = WeightedItem<int>.ChooseAndRemove(ref machinesWeightedByApplicableTardyJobs);
                 machinesSelected.Add(machineTardinessList[idx].Item1);
-                machineTardinessList.RemoveAt(idx);
             }
 
 
