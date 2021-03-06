@@ -101,7 +101,8 @@ namespace CO1
                         tardinessBefore += cost.tardinessPerMachine[m];
 
                     MultiMachineModel tm = new MultiMachineModel(problem, env, schedules, machingesToChange);
-                    schedules = tm.solveModel(millisecondsTime, tardinessBefore, !(rnd.NextDouble() < probabilityOptimizeMakespan));
+                    bool isOptimal;
+                    (schedules, isOptimal) = tm.solveModel(millisecondsTime, tardinessBefore, !(rnd.NextDouble() < probabilityOptimizeMakespan));
 
                     foreach (int m in machingesToChange)
                     {
@@ -134,10 +135,27 @@ namespace CO1
             int millisecondsAddedPerFailedImprovement = 200;
 
             int nrIterations = 30;
-            long weightOneOpti = 5;
-            long weightTwoOpti = 20;
-            long weightThreeOpti = 8;
-            long weightManyOpti = 1;
+
+            long weightOneOpti = 5000;
+            long weightTwoOpti = 20000;
+            long weightThreeOpti = 8000;
+            long weightManyOpti = 1000;
+            long weightVariance = (10 - weightManyOpti) / (problem.machines - 3);
+            long weightChange = 300;
+
+            List<WeightedItem<int>> choices = new List<WeightedItem<int>> {
+                new WeightedItem<int>(1, weightOneOpti), new  WeightedItem<int>(2, weightTwoOpti),
+                new WeightedItem<int>(3, weightThreeOpti)};
+
+            while (choices.Count > problem.machines)
+                choices.RemoveAt(choices.Count - 1);
+
+            while (choices.Count < problem.machines)
+            {
+                choices.Add(new WeightedItem<int>(choices.Count, weightManyOpti));
+                weightManyOpti += weightVariance;
+            }
+
             
             TabuList tabuList = new TabuList();
 
@@ -159,12 +177,7 @@ namespace CO1
             MachineToOptimizeHeuristic machineSelector1 = new SelectByTardiness();
             MachineToOptimizeHeuristic machineSelector2 = new SelectByFindingBigProblems();
 
-            List<WeightedItem<int>> choices = new List<WeightedItem<int>> { 
-                new WeightedItem<int>(1, weightOneOpti), new  WeightedItem<int>(2, weightTwoOpti), 
-                new WeightedItem<int>(3, weightThreeOpti), new WeightedItem<int>(0, weightManyOpti) };
-
             int millisecondsTime = (int)Math.Ceiling(timeRemainingInMS / nrIterations);
-
 
             while (DateTime.UtcNow.Subtract(startTime).TotalMilliseconds < timeRemainingInMS)
             {
@@ -188,43 +201,32 @@ namespace CO1
                 long tardinessBefore = cost.tardiness;
                 long makespanBefore = cost.makeSpan;
 
-                switch (choice)
+                if (choice == 1)
                 {
-                    case (1):
-                        int singleMachineIdx = machineSelector.selectMachines(1).First();
+                    int singleMachineIdx = machineSelector.selectMachines(1).First();
 
-                        if (!tabuList.isAllowedPairing(singleMachineIdx))
-                        {
-                            Console.WriteLine("Fordbidden Pairing found.");
-                            continue;
-                        }
-                        SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
-                        schedules[singleMachineIdx] = sm.solveModel((int)(timeRemainingInMS / 10 / problem.machines), cost.tardinessPerMachine[singleMachineIdx]);
-                        cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
-
-                        if (cost.tardiness != tardinessBefore || cost.makeSpan != makespanBefore)
-                            tabuList.removePairings(new List<int> { singleMachineIdx });
-                        else
-                            timeRemainingInMS += millisecondsAddedPerFailedImprovement;
-
-
-                         tabuList.addPairing(new List<int> { singleMachineIdx });
-
-                        Console.WriteLine(String.Format("Best Result from VLNS: ({0},{1})", cost.tardiness, cost.makeSpan));
+                    if (!tabuList.isAllowedPairing(singleMachineIdx))
+                    {
+                        Console.WriteLine("Fordbidden Pairing found.");
                         continue;
-                    case (2):
-                        nrOfMachinesToSolve = 2;
-                        break;
-                    case (3):
-                        nrOfMachinesToSolve = 3;
-                        break;
-                    default:
-                        nrOfMachinesToSolve = rnd.Next(4 <= problem.machines ? 4 : problem.machines, problem.machines + 1);
-                        break;
+                    }
+                    SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
+                    schedules[singleMachineIdx] = sm.solveModel((int)(timeRemainingInMS / 10 / problem.machines), cost.tardinessPerMachine[singleMachineIdx]);
+                    cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
+
+                    if (cost.tardiness != tardinessBefore || cost.makeSpan != makespanBefore)
+                        tabuList.removePairings(new List<int> { singleMachineIdx });
+                    else
+                        timeRemainingInMS += millisecondsAddedPerFailedImprovement;
+
+
+                    tabuList.addPairing(new List<int> { singleMachineIdx });
+
+                    Console.WriteLine(String.Format("Best Result from VLNS: ({0},{1})", cost.tardiness, cost.makeSpan));
+                    continue;
                 }
-
-
-
+                else
+                    nrOfMachinesToSolve = choice;
 
                 //while (machineSelector.areMachinesLeft())
                 //{
@@ -241,7 +243,9 @@ namespace CO1
                     tardinessBeforeForMachingesToChange += cost.tardinessPerMachine[m];
 
                 MultiMachineModel tm = new MultiMachineModel(problem, env, schedules, machingesToChange);
-                schedules = tm.solveModel(millisecondsTime, tardinessBeforeForMachingesToChange, !(rnd.NextDouble() < probabilityOptimizeMakespan));
+                bool isOptimal;
+
+                (schedules, isOptimal) = tm.solveModel(millisecondsTime, tardinessBeforeForMachingesToChange, !(rnd.NextDouble() < probabilityOptimizeMakespan));
 
                 foreach (int m in machingesToChange)
                 {
@@ -253,9 +257,19 @@ namespace CO1
                 cost.updateMakeSpan();
 
                 if (cost.tardiness != tardinessBefore || cost.makeSpan != makespanBefore)
+                {
                     tabuList.removePairings(machingesToChange);
+                    WeightedItem<int>.adaptWeight(ref choices, choice, weightChange);
+                }
                 else
+                {
                     millisecondsTime += millisecondsAddedPerFailedImprovement;
+                    if (isOptimal)
+                    {
+                        WeightedItem<int>.adaptWeight(ref choices, choice, -1 * weightChange);
+                    }
+                }
+
 
 
                 tabuList.addPairing(machingesToChange);

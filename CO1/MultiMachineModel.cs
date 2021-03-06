@@ -37,7 +37,8 @@ namespace CO1
             scheduleInitialCombinedWithDummy.Insert(0, 0);
         }
 
-        public List<int>[] solveModel(int milliseconds, long tardinessBefore, bool optimizePrimarilyForTardiness = true)
+        // Returns (schedule, isOptimal)
+        public Tuple<List<int>[], bool> solveModel(int milliseconds, long tardinessBefore, bool optimizePrimarilyForTardiness = true)
         {
 
 
@@ -83,7 +84,9 @@ namespace CO1
 
             List<int>[] newSchedule = calculateMachineAsssignmentFromModel(jobsInclDummy, Y, X, schedule);
 
-            if (model.Status == 2)
+            bool isOptimal = model.Status == 2;
+
+            if (isOptimal)
                 Console.WriteLine("\t-> OPTIMAL SOLUTION");
 
             Console.WriteLine(String.Format("\tTardiness {0} -> {1}", tardinessBefore, Math.Floor(model.ObjVal / V)));
@@ -92,7 +95,7 @@ namespace CO1
             //    Console.WriteLine("___________________");
 
             model.Dispose();
-            return newSchedule;
+            return new Tuple<List<int>[], bool> (newSchedule, isOptimal);
         }
 
 

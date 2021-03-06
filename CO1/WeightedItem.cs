@@ -59,5 +59,11 @@ namespace CO1
             WeightedItem<T> weightedItem = items.Where(i => i.value.Equals(item)).First();
             items.Remove(weightedItem);
         }
+
+        public static void adaptWeight(ref List<WeightedItem<T>> items, T item, long weightChange)
+        {
+            WeightedItem<T> weightedItem = items.Where(i => i.value.Equals(item)).First();
+            weightedItem.weight += weightChange;
+        }
     }
 }
