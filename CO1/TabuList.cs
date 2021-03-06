@@ -10,7 +10,11 @@ namespace CO1
         private List<List<int>> tabuPairings = new List<List<int>>();
         private int nrTabuPairingsFound = 0;
 
-
+        public int Count()
+        {
+            return tabuPairings.Count;
+        }
+        
         public void addPairing(List<int> pairing)
         {
             if (tabuPairings.FirstOrDefault(t => t.Count == pairing.Count && t.All(s => pairing.Contains(s))) == null)
@@ -20,6 +24,13 @@ namespace CO1
         public void addPairing(int pairing)
         {
             addPairing(new List<int> { pairing});
+        }
+
+        public void clean(TabuList optimalList)
+        {
+            tabuPairings = new List<List<int>>();
+            foreach (List<int> list in optimalList.tabuPairings)
+                tabuPairings.Add(new List<int>(list));
         }
 
         public void removePairings(List<int> pairing)

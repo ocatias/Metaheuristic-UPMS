@@ -35,7 +35,8 @@ namespace CO1
             scheduleShifted.Insert(0, 0);
         }
 
-        public List<int> solveModel(int milliseconds, long tardinessBefore)
+        // Returns (computed schedule, isOptimalSolution)
+        public Tuple<List<int>, bool> solveModel(int milliseconds, long tardinessBefore)
         {
             int jobsInclDummy = schedule.Count + 1;
 
@@ -61,7 +62,9 @@ namespace CO1
 
             solver.Optimize();
 
-            if (solver.Status == 2)
+            bool isSolvedOptimally = solver.Status == 2;
+
+            if (isSolvedOptimally)
                 Console.WriteLine("-> OPTIMAL SOLUTION");
 
             List<int>[] machinesOrder = calculateMachineAsssignmentFromModel(jobsInclDummy, X);
@@ -75,7 +78,7 @@ namespace CO1
             }
 
             solver.Dispose();
-            return scheduleToReturn;
+            return new Tuple<List<int>, bool> (scheduleToReturn, isSolvedOptimally);
         }
         private void setInitialValues(int jobsInclDummy, GRBModel solver, GRBVar[,] X, GRBVar[] C, GRBVar[] T)
         {

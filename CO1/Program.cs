@@ -17,7 +17,7 @@ namespace CO1
             //string pathRealLife = "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\real-life";
 
             // Big files:
-            List<string> allFilesInDirectory = new List<string>() { "p_13-80-80_1.max" };
+            List<string> allFilesInDirectory = new List<string>() { "p_3-17-20_1.max" };
 
 
 
@@ -30,7 +30,7 @@ namespace CO1
 
             //allFilesInDirectory = allFilesInDirectory.OrderBy(x => Guid.NewGuid()).ToList();
 
-            runVLNS(180, 1, pathValidation, allFilesInDirectory, "0503_VLNS");
+            runVLNS(1800, 1, pathValidation, allFilesInDirectory, "0503_VLNS");
             //runSimulatedAnnealing(60, 1, pathValidation, allFilesInDirectory, "2801CompareToMax(Seq)");
 
             //runLinearModels("0403_LM");

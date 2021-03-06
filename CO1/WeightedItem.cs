@@ -63,7 +63,10 @@ namespace CO1
         public static void adaptWeight(ref List<WeightedItem<T>> items, T item, long weightChange)
         {
             WeightedItem<T> weightedItem = items.Where(i => i.value.Equals(item)).First();
-            weightedItem.weight += weightChange;
+            if (weightChange > 0 || weightedItem.weight + weightChange > 0)
+                weightedItem.weight += weightChange;
+            else
+                weightedItem.weight = 1;
         }
     }
 }
