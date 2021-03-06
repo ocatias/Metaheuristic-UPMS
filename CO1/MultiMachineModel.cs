@@ -39,7 +39,9 @@ namespace CO1
 
         public List<int>[] solveModel(int milliseconds, long tardinessBefore, bool optimizePrimarilyForTardiness = true)
         {
-            Console.WriteLine("Solver runtime: " + milliseconds/1000 + " sec, #machines " + machinesToChange.Count.ToString());
+
+
+            Console.WriteLine("Solver runtime: " + milliseconds + " ms, machines: " + String.Join(", ", machinesToChange));
 
             if (!optimizePrimarilyForTardiness)
                 Console.WriteLine("Optimizing for makespan");
@@ -74,7 +76,7 @@ namespace CO1
             //Console.WriteLine("Start solution value " + Math.Floor(model.ObjVal / V).ToString());
 
             model.Optimize();
-            Console.WriteLine("MIP Gap: " + model.MIPGap.ToString() + "%");
+            Console.WriteLine(String.Format("\tMIP Gap: {0:C2}%", model.MIPGap.ToString()));
 
             if (model.Status == 3)
                 Console.WriteLine("----------------------------------");
@@ -82,9 +84,9 @@ namespace CO1
             List<int>[] newSchedule = calculateMachineAsssignmentFromModel(jobsInclDummy, Y, X, schedule);
 
             if (model.Status == 2)
-                Console.WriteLine("-> OPTIMAL SOLUTION");
+                Console.WriteLine("\t-> OPTIMAL SOLUTION");
 
-            Console.WriteLine(String.Format("tardiness {0} -> {1}", tardinessBefore, Math.Floor(model.ObjVal / V)));
+            Console.WriteLine(String.Format("\tTardiness {0} -> {1}", tardinessBefore, Math.Floor(model.ObjVal / V)));
 
             //if (tardinessBefore < Math.Floor(model.ObjVal / V))
             //    Console.WriteLine("___________________");
