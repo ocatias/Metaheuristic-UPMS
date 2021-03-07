@@ -131,7 +131,7 @@ namespace CO1
         {
             for (int j = 1; j < jobsInclDummy; j++)
             {
-                if (X[predecessor, j].X == 1)
+                if (X[predecessor, j].X >= 0.9)
                     return j;
             }
 

@@ -14,6 +14,7 @@ namespace CO1
 
         private float probabilityOptimizeMakespan = 0f;
         private bool isSolvedOptimally = false;
+        private TabuList optimallySolvedTL;
 
         // How many jobs from firstList are tardy and can be put on the machine from secondList
         private List<List<ScheduleForDifferentMachineInfo>> scheduleInfo = new List<List<ScheduleForDifferentMachineInfo>>();
@@ -61,6 +62,7 @@ namespace CO1
                 outputFile.WriteLine(String.Format("Actual runtime: {0}s", DateTime.UtcNow.Subtract(startTime).TotalSeconds));
                 if (isSolvedOptimally)
                     outputFile.WriteLine("Solution proven to be optimal");
+                outputFile.Write(String.Format("Optimally solved pairings:\n{0}", optimallySolvedTL.outputTabulist()));
 
             }
 
@@ -183,7 +185,7 @@ namespace CO1
 
             
             TabuList recentlySolvedTL = new TabuList();
-            TabuList optimallySolvedTL = new TabuList();
+            optimallySolvedTL = new TabuList();
             bool isOptimal;
 
 

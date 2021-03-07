@@ -63,5 +63,15 @@ namespace CO1
         {
             return nrTabuPairingsFound;
         }
+
+        public string outputTabulist()
+        {
+            string output = "";
+            foreach(List<int> pairing in tabuPairings.OrderBy(p => p.Count))
+            {
+                output += String.Join(", ", pairing) + "\n";
+            }
+            return output;
+        }
     }
 }
