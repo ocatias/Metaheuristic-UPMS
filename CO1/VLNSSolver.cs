@@ -2,6 +2,7 @@
 using Gurobi;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 
@@ -12,6 +13,7 @@ namespace CO1
         ProblemInstance problem;
 
         private float probabilityOptimizeMakespan = 0f;
+        private bool isSolvedOptimally = false;
 
         // How many jobs from firstList are tardy and can be put on the machine from secondList
         private List<List<ScheduleForDifferentMachineInfo>> scheduleInfo = new List<List<ScheduleForDifferentMachineInfo>>();
@@ -45,11 +47,23 @@ namespace CO1
             Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
             Console.WriteLine(String.Format("Best Result from Heuristic: ({0},{1})", cost.tardiness, cost.makeSpan));
 
-            solveSmallAmounts(startTime, ref schedules, env, ref cost, rnd, runtimeInSeconds);
+            solveSmallAmounts(startTime, ref schedules, env, ref cost, rnd, runtimeInSeconds, filepathResultInfo);
 
 
             Console.WriteLine(String.Format("Best Result from VLNS: ({0},{1})", cost.tardiness, cost.makeSpan));
             Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
+
+            using (StreamWriter outputFile = new StreamWriter(filepathResultInfo))
+            {
+                outputFile.WriteLine(String.Format("Tardiness: {0}", cost.tardiness));
+                outputFile.WriteLine(String.Format("Makespan: {0}", cost.makeSpan));
+                outputFile.WriteLine(String.Format("Selected runtime: {0}s", runtimeInSeconds));
+                outputFile.WriteLine(String.Format("Actual runtime: {0}s", DateTime.UtcNow.Subtract(startTime).TotalSeconds));
+                if (isSolvedOptimally)
+                    outputFile.WriteLine("Solution proven to be optimal");
+
+            }
+
             ResultExport.storeMachineSchedule(filepathMachineSchedule, problem, schedules);
         }
 
@@ -130,13 +144,13 @@ namespace CO1
             cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
         }
 
-        private void solveSmallAmounts(DateTime startTime, ref List<int>[] schedules, GRBEnv env, ref SolutionCost cost, Random rnd, int runtimeInSeconds)
+        private void solveSmallAmounts(DateTime startTime, ref List<int>[] schedules, GRBEnv env, ref SolutionCost cost, Random rnd, int runtimeInSeconds, string outputFile)
         {
             int millisecondsAddedPerFailedImprovement = 2000;
 
             int nrIterations = 30;
 
-            long weightOneOpti = 8000;
+            long weightOneOpti = 12000;
             long weightTwoOpti = 20000;
             long weightThreeOpti = 8000;
 
@@ -147,12 +161,12 @@ namespace CO1
 
             if(problem.machines > 3)
             {
-                weightManyOpti = weightForAllOptionsAbove3InTotal / ((problem.machines - 3) / 2);
+                weightManyOpti = (long)(weightForAllOptionsAbove3InTotal / ((problem.machines - 3) / 2.0f));
                 weightVariance = (10 - weightManyOpti) / (problem.machines - 3);
             }
 
             long weightChangeIfSolutionIsGood = +100;
-            long weightChangeIfSolutionIsBadAndOptimal = -300;
+            long weightChangeIfSolutionIsBadAndOptimal = -500;
 
             List<WeightedItem<int>> choices = new List<WeightedItem<int>> {
                 new WeightedItem<int>(1, weightOneOpti), new  WeightedItem<int>(2, weightTwoOpti),
@@ -193,12 +207,23 @@ namespace CO1
 
             int millisecondsTime = (int)Math.Ceiling(timeRemainingInMS / nrIterations);
 
+            List<int> allMachines = new List<int>();
+            for (int i = 0; i < problem.machines; i++)
+                allMachines.Add(i);
+
             while (DateTime.UtcNow.Subtract(startTime).TotalMilliseconds < timeRemainingInMS)
             {
-                Console.WriteLine(String.Format("Current solution: ({0},{1})", cost.tardiness, cost.makeSpan));
+                if (!optimallySolvedTL.isAllowedPairing(allMachines))
+                {
+                    Console.WriteLine("SOLVED OPTIMALLY");
+                    isSolvedOptimally = true;
+                    break;
+                }
+
+                Console.WriteLine(String.Format("Current solution: ({0},{1})", cost.tardiness, cost.makeSpan));         
 
                 machineSelector1 = new SelectByTardiness();
-                new SelectByFindingBigProblems();
+                machineSelector2 = new SelectByFindingBigProblems();
 
                 int nrOfMachinesToSolve;
 
@@ -211,15 +236,29 @@ namespace CO1
                 int choice = WeightedItem<int>.Choose(choices);
 
                 MachineToOptimizeHeuristic machineSelector;
-                if (rnd.NextDouble() < 0.7)
+                if (rnd.NextDouble() < 0.1)
+                {
+                    Console.WriteLine("Select by tardiness");
                     machineSelector = machineSelector1;
+                }
                 else
+                {
+                    Console.WriteLine("Select by finding big problem");
                     machineSelector = machineSelector2;
+                }
 
                 machineSelector.fillInfo(cost, schedules, scheduleInfo);
 
                 long tardinessBefore = cost.tardiness;
                 long makespanBefore = cost.makeSpan;
+
+                // Ensure that the solver does not go over the maximum time
+                int timeForSolver = millisecondsTime;
+                int maxTimeForSolver = runtimeInSeconds * 1000 - (int)DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
+                if (timeForSolver > maxTimeForSolver)
+                    timeForSolver = maxTimeForSolver;
+                if (maxTimeForSolver <= 0)
+                    break;
 
                 if (choice == 1)
                 {
@@ -231,7 +270,7 @@ namespace CO1
                         continue;
                     }
                     SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
-                    (schedules[singleMachineIdx], isOptimal) = sm.solveModel((int)(timeRemainingInMS / 10 / problem.machines), cost.tardinessPerMachine[singleMachineIdx]);
+                    (schedules[singleMachineIdx], isOptimal) = sm.solveModel(timeForSolver, cost.tardinessPerMachine[singleMachineIdx]);
                     cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
 
                     if (cost.tardiness != tardinessBefore || cost.makeSpan != makespanBefore)
@@ -258,7 +297,7 @@ namespace CO1
                 //{
                 List<int> machingesToChange = machineSelector.selectMachines(nrOfMachinesToSolve);
 
-                if(!recentlySolvedTL.isAllowedPairing(machingesToChange))
+                if (!recentlySolvedTL.isAllowedPairing(machingesToChange))
                 {
                     Console.WriteLine("Fordbidden Pairing found.");
                     continue;
@@ -270,7 +309,7 @@ namespace CO1
 
                 MultiMachineModel tm = new MultiMachineModel(problem, env, schedules, machingesToChange);
 
-                (schedules, isOptimal) = tm.solveModel(millisecondsTime, tardinessBeforeForMachingesToChange, !(rnd.NextDouble() < probabilityOptimizeMakespan));
+                (schedules, isOptimal) = tm.solveModel(timeForSolver, tardinessBeforeForMachingesToChange, !(rnd.NextDouble() < probabilityOptimizeMakespan));
 
                 foreach (int m in machingesToChange)
                 {
@@ -302,6 +341,12 @@ namespace CO1
 
                 //cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
 
+                if (!optimallySolvedTL.isAllowedPairing(allMachines))
+                {
+                    Console.WriteLine("SOLVED OPTIMALLY");
+                    isSolvedOptimally = true;
+                    break;
+                }
             }
 
             Console.WriteLine(String.Format("{0}, tabu pairings found", recentlySolvedTL.nrOfTabuPairingsFound()));

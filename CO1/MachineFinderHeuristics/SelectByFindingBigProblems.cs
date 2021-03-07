@@ -29,7 +29,7 @@ namespace CO1.MachineFinderHeuristics
 
             for (int m = 0; m < schedules.Length; m++)
             {
-                if (schedules[m].Count > 1 && cost.tardinessPerMachine[m] > 0)
+                if (schedules[m].Count > 1)
                     machinesWeighted.Add(new WeightedItem<int>(m, cost.tardinessPerMachine[m]));
             }
         }

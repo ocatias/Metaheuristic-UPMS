@@ -91,9 +91,6 @@ namespace CO1
 
             Console.WriteLine(String.Format("\tTardiness {0} -> {1}", tardinessBefore, Math.Floor(model.ObjVal / V)));
 
-            //if (tardinessBefore < Math.Floor(model.ObjVal / V))
-            //    Console.WriteLine("___________________");
-
             model.Dispose();
             return new Tuple<List<int>[], bool> (newSchedule, isOptimal);
         }
