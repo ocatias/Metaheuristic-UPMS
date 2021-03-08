@@ -42,7 +42,7 @@ namespace CO1
         }
 
         // A pairing is allowed if the pairing is not in the tabu list and it is not a subset of any pairing in the tabu list
-        public bool isAllowedPairing(List<int> pairing)
+        public bool isNotATabuPairing(List<int> pairing)
         {
             //bool isAllowed = !(tabuPairings.Contains(pairing) || tabuPairings.Where(t => pairing.All(p => t.Contains(p))).Count() != 0);
             bool isAllowed = tabuPairings.FirstOrDefault(t => t.Count == pairing.Count && t.All(s => pairing.Contains(s))) == null;
@@ -53,9 +53,25 @@ namespace CO1
             return isAllowed;
         }
 
+        // Returns true if there exists no pairing which is a superset of it (or the same set)
+        public bool isNotSubsetOfATabuPairing(List<int> pairing)
+        {
+            bool isAllowed = tabuPairings.Where(t => pairing.All(p => t.Contains(p))).Count() == 0;
+
+            if (!isAllowed)
+                nrTabuPairingsFound++;
+
+            return isAllowed;
+        }
+
+        public bool isNotSubsetOfATabuPairing(int pairing)
+        {
+            return isNotSubsetOfATabuPairing(new List<int> { pairing });
+        }
+
         public bool isAllowedPairing(int pairing)
         {
-            return isAllowedPairing(new List<int> { pairing });
+            return isNotATabuPairing(new List<int> { pairing });
         }
 
 

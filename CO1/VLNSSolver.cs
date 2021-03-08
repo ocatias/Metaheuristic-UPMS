@@ -215,7 +215,7 @@ namespace CO1
 
             while (DateTime.UtcNow.Subtract(startTime).TotalMilliseconds < timeRemainingInMS)
             {
-                if (!optimallySolvedTL.isAllowedPairing(allMachines))
+                if (!optimallySolvedTL.isNotATabuPairing(allMachines))
                 {
                     Console.WriteLine("SOLVED OPTIMALLY");
                     isSolvedOptimally = true;
@@ -266,7 +266,7 @@ namespace CO1
                 {
                     int singleMachineIdx = machineSelector.selectMachines(1).First();
 
-                    if (!recentlySolvedTL.isAllowedPairing(singleMachineIdx))
+                    if (!recentlySolvedTL.isAllowedPairing(singleMachineIdx) || !optimallySolvedTL.isNotSubsetOfATabuPairing(singleMachineIdx))
                     {
                         Console.WriteLine("Fordbidden Pairing found.");
                         continue;
@@ -299,7 +299,7 @@ namespace CO1
                 //{
                 List<int> machingesToChange = machineSelector.selectMachines(nrOfMachinesToSolve);
 
-                if (!recentlySolvedTL.isAllowedPairing(machingesToChange))
+                if (!recentlySolvedTL.isNotATabuPairing(machingesToChange))
                 {
                     Console.WriteLine("Fordbidden Pairing found.");
                     continue;
@@ -343,7 +343,7 @@ namespace CO1
 
                 //cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
 
-                if (!optimallySolvedTL.isAllowedPairing(allMachines))
+                if (!optimallySolvedTL.isNotATabuPairing(allMachines))
                 {
                     Console.WriteLine("SOLVED OPTIMALLY");
                     isSolvedOptimally = true;

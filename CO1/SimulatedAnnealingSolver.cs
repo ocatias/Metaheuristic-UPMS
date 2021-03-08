@@ -34,8 +34,8 @@ namespace CO1
         public void solve(int runtimeInSeconds, string filepathResultInfo, string filepathMachineSchedule)
         {
             // Create an empty environment, set options and start
-            GRBEnv env = new GRBEnv(true);
-            env.Start();
+            //GRBEnv env = new GRBEnv(true);
+            //env.Start();
 
             List<int>[] schedules = Heuristics.createInitialSchedules(problem);
 
@@ -89,7 +89,7 @@ namespace CO1
                 //}
 
                 currentStep++;
-                if ((currentStep / stepsBeforeCooling) > howOftenHaveWeCooled)
+                if ((currentStep - stepsBeforeCooling* howOftenHaveWeCooled) > stepsBeforeCooling)
                 {
                     howOftenHaveWeCooled++;
                     temperature = temperature * coolingFactor;
@@ -125,6 +125,8 @@ namespace CO1
                         bestSchedules = Helpers.cloneSchedule(schedules);
                     }
                 }
+                if(currentStep % 10000000 == 0)
+                    Console.WriteLine(String.Format("Current: ({0}, {1}); Best: ({2},{3})", cost.tardiness, cost.makeSpan, lowestCost.tardiness, lowestCost.makeSpan));
                        
             }
 
