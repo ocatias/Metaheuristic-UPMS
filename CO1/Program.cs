@@ -21,8 +21,8 @@ namespace CO1
             //    "p_22-140-140_1.max", "p_29-140-140_1.max", "p_3-17-20_1.max", "p_7-19-40_1.max", "p_9-180-180_1.max", "s_10-120-180_1.max", "s_1-3-100_1.max", "s_15-80-80_2.max", "s_15-80-80_3.max",
             //    "s_22-149-160_1.max", "s_4-16-20_1.max", "t_10-24-40_1.max", "t_15-77-80_1.max", "t_18-56-100_1.max", "t_20-76-100_1.max", "t_28-34-100_1.max", "t_3-12-200_1.max"  };
 
-            List<string> allFilesInDirectory = new List<string>() { "p_9-180-180_1.max", "s_10-120-180_1.max", "s_1-3-100_1.max", "s_15-80-80_2.max", "s_15-80-80_3.max",
-                "s_22-149-160_1.max", "s_4-16-20_1.max", "t_10-24-40_1.max", "t_15-77-80_1.max", "t_18-56-100_1.max", "t_20-76-100_1.max", "t_28-34-100_1.max", "t_3-12-200_1.max" };
+            List<string> allFilesInDirectory = new List<string>() { "p_15-60-60_1.max", "s_10-120-180_1.max", "s_15-80-80_2.max", "s_15-80-80_3.max",
+                "s_22-149-160_1.max", "s_4-16-20_1.max", "t_10-24-40_1.max", "t_15-77-80_1.max", "t_18-56-100_1.max", "t_20-76-100_1.max", "t_28-34-100_1.max" };
 
 
 
@@ -36,12 +36,12 @@ namespace CO1
 
             //allFilesInDirectory = allFilesInDirectory.OrderBy(x => Guid.NewGuid()).ToList();
 
-            //runVLNS(60, 1, pathValidation, allFilesInDirectory, "0803_VLNS_60s");
+            //runVLNS(1800, 1, pathValidation, allFilesInDirectory, "0703_VLNS_1800s");
             //runSimulatedAnnealing(10, 1, pathValidation, allFilesInDirectory, "0803_SA_10s");
             //runSimulatedAnnealing(60, 1, pathValidation, allFilesInDirectory, "0803_SA_60s");
-            runSimulatedAnnealing(1800, 1, pathValidation, allFilesInDirectory, "0803_SA_1800s");
+            //runSimulatedAnnealing(1800, 1, pathValidation, allFilesInDirectory, "0803_SA_1800s");
 
-            //runLinearModels("0403_LM");
+            runLinearModels("MIP_30Min_each");
         }
 
         public static void runVLNS(int secondsPerRun, int repeats, string path, List<string> filenames, string experimentName)
@@ -111,8 +111,7 @@ namespace CO1
         public static void runLinearModels(string experimentName)
         {
             string path = Environment.GetEnvironmentVariable("ValidationDataPath");
-            //List<string> realLifeDataFileNames = new List<string> { "p_9-180-180_1.max", "t_3-12-200_1.max", "p_15-60-60_1.max", "p_18-80-80_2.max", "p_3-17-20_1.max", "s_1-3-100_1.max", };
-            List<string> realLifeDataFileNames = new List<string> { "t_10-24-40_1.max" };
+            List<string> realLifeDataFileNames = new List<string>  { "p_18-80-80_2.max" };
 
             Console.WriteLine("Working on these problems:");
             foreach (string filename in realLifeDataFileNames)

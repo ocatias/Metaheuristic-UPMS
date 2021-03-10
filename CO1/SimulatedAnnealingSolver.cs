@@ -48,7 +48,7 @@ namespace CO1
             DateTime startTime = DateTime.UtcNow;
 
             int howOftenHaveWeCooled = 0;
-            int currentStep = 0;
+            long currentStep = 0;
             int stepsSinceLastImprovement = 0;
 
             SolutionCost lowestCost = new SolutionCost(cost);
