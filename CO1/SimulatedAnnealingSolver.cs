@@ -11,6 +11,10 @@ namespace CO1
     {
         ProblemInstance problem;
 
+        private List<int>[] schedules;
+        private SolutionCost cost;
+        private long currentStep;
+
         // Parameters:
         int stepsBeforeCooling = 20339;
         double coolingFactor = 0.93;
@@ -30,16 +34,10 @@ namespace CO1
             this.problem = problem;
         }
 
-        // Simmulated Annealing with Reheating
-        public void solve(int runtimeInSeconds, string filepathResultInfo, string filepathMachineSchedule)
+        public List<int>[] solveDirect(int runtimeInSeconds)
         {
-            // Create an empty environment, set options and start
-            //GRBEnv env = new GRBEnv(true);
-            //env.Start();
-
-            List<int>[] schedules = Heuristics.createInitialSchedules(problem);
-
-            SolutionCost cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
+            schedules = Heuristics.createInitialSchedules(problem);
+            cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
 
             Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
 
@@ -48,7 +46,7 @@ namespace CO1
             DateTime startTime = DateTime.UtcNow;
 
             int howOftenHaveWeCooled = 0;
-            long currentStep = 0;
+            currentStep = 0;
             int stepsSinceLastImprovement = 0;
 
             SolutionCost lowestCost = new SolutionCost(cost);
@@ -60,36 +58,11 @@ namespace CO1
             {
                 List<int>[] tempSchedule;
                 List<int> changedMachines;
-                //if (stepsSinceLastImprovement < maxStepsSinceLastImprovement)
-                //{
-                    (tempSchedule, changedMachines) = SimulatedAnnealingMoves.doSAStep(problem,  rnd, schedules, cost.makeSpanMachine,
-                         probabilityTardynessGuideance, probabilityInterMachineMove, probabilityBlockMove, probabilityShiftMove, probabilityMakeSpanGuideance);
-                //}
-                //else
-                //{
-                //    tempSchedule = Helpers.cloneSchedule(schedules);
-                //    stepsSinceLastImprovement = 0;
-
-
-                //    // Selected a machine with more than one job scheduled to it and a nonzero tardiness
-                //    List<WeightedItem<int>> weightedMachinesList = new List<WeightedItem<int>>();
-                //    for(int m = 0; m < schedules.Length; m++)
-                //    {
-                //        if (schedules[m].Count > 1 && cost.tardinessPerMachine[m] > 0)
-                //            weightedMachinesList.Add(new WeightedItem<int>(m, cost.tardinessPerMachine[m]));
-                //    }
-
-                //    int singleMachineIdx = WeightedItem<int>.Choose(weightedMachinesList);
-
-
-
-                //    SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
-                //    tempSchedule[singleMachineIdx] = sm.solveModel(1000, cost.tardinessPerMachine[singleMachineIdx]);
-                //    changedMachines = new List<int>() { singleMachineIdx };
-                //}
-
+                (tempSchedule, changedMachines) = SimulatedAnnealingMoves.doSAStep(problem, rnd, schedules, cost.makeSpanMachine,
+                     probabilityTardynessGuideance, probabilityInterMachineMove, probabilityBlockMove, probabilityShiftMove, probabilityMakeSpanGuideance);
+                
                 currentStep++;
-                if ((currentStep - stepsBeforeCooling* howOftenHaveWeCooled) > stepsBeforeCooling)
+                if ((currentStep - stepsBeforeCooling * howOftenHaveWeCooled) > stepsBeforeCooling)
                 {
                     howOftenHaveWeCooled++;
                     temperature = temperature * coolingFactor;
@@ -110,24 +83,24 @@ namespace CO1
                 else
                     stepsSinceLastImprovement++;
 
-                if (costTemp.isBetterThan(cost) || 
-                    (rnd.NextDouble() <= Math.Exp(-(Helpers.cost(costTemp.tardiness, costTemp.makeSpan) - Helpers.cost(cost.tardiness, cost.makeSpan))/temperature)))
+                if (costTemp.isBetterThan(cost) ||
+                    (rnd.NextDouble() <= Math.Exp(-(Helpers.cost(costTemp.tardiness, costTemp.makeSpan) - Helpers.cost(cost.tardiness, cost.makeSpan)) / temperature)))
                 {
-                    
+
 
                     schedules = tempSchedule;
                     cost = costTemp;
 
                     // Elitism
-                    if(cost.isBetterThan(lowestCost))
+                    if (cost.isBetterThan(lowestCost))
                     {
                         lowestCost = new SolutionCost(cost);
                         bestSchedules = Helpers.cloneSchedule(schedules);
                     }
                 }
-                if(currentStep % 10000000 == 0)
+                if (currentStep % 10000000 == 0)
                     Console.WriteLine(String.Format("Current: ({0}, {1}); Best: ({2},{3})", cost.tardiness, cost.makeSpan, lowestCost.tardiness, lowestCost.makeSpan));
-                       
+
             }
 
             if (lowestCost.isBetterThan(cost))
@@ -135,8 +108,12 @@ namespace CO1
                 cost = new SolutionCost(lowestCost);
                 schedules = Helpers.cloneSchedule(bestSchedules);
             }
+            return schedules;
+        }
 
-
+        // Simmulated Annealing with Reheating
+        public void solve(int runtimeInSeconds, string filepathResultInfo, string filepathMachineSchedule)
+        {
             Console.WriteLine(String.Format("Best Result: ({0},{1})", cost.tardiness, cost.makeSpan));
 
             Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);

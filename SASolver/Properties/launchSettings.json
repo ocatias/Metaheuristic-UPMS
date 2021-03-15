@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "SASolver": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\training\\p_1-20-20_2.max 60 2764.93 6.73 20339 0.66 0.84 0.04 0.85 0.71 26 0.93"
+    }
+  }
+}

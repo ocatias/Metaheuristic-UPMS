@@ -21,18 +21,7 @@ namespace CO1
             //    "p_22-140-140_1.max", "p_29-140-140_1.max", "p_3-17-20_1.max", "p_7-19-40_1.max", "p_9-180-180_1.max", "s_10-120-180_1.max", "s_1-3-100_1.max", "s_15-80-80_2.max", "s_15-80-80_3.max",
             //    "s_22-149-160_1.max", "s_4-16-20_1.max", "t_10-24-40_1.max", "t_15-77-80_1.max", "t_18-56-100_1.max", "t_20-76-100_1.max", "t_28-34-100_1.max", "t_3-12-200_1.max"  };
 
-            List<string> allFilesInDirectory = new List<string>() { "p_15-60-60_1.max", "s_10-120-180_1.max", "s_15-80-80_2.max", "s_15-80-80_3.max",
-                "s_22-149-160_1.max", "s_4-16-20_1.max", "t_10-24-40_1.max", "t_15-77-80_1.max", "t_18-56-100_1.max", "t_20-76-100_1.max", "t_28-34-100_1.max" };
-
-
-
-
-
-            //List<string> allFilesInDirectory = (List<string>)Directory.GetFiles(pathTraining).ToList().Where(x => x.Contains(".max")).ToList();
-            //for (int i = 0; i < allFilesInDirectory.Count; i++)
-            //    allFilesInDirectory[i] = allFilesInDirectory[i].Split("\\").Last();
-
-
+            List<string> allFilesInDirectory = new List<string>() { "t_3-12-200_1.max" };
 
             //allFilesInDirectory = allFilesInDirectory.OrderBy(x => Guid.NewGuid()).ToList();
 
@@ -41,7 +30,9 @@ namespace CO1
             //runSimulatedAnnealing(60, 1, pathValidation, allFilesInDirectory, "0803_SA_60s");
             //runSimulatedAnnealing(1800, 1, pathValidation, allFilesInDirectory, "0803_SA_1800s");
 
-            runLinearModels("MIP_30Min_each");
+            //runLinearModels("MIP_30Min_each");
+
+            runHybridSolver(1800, 1, pathValidation, allFilesInDirectory, "1003_Hybrid_1800s");
         }
 
         public static void runVLNS(int secondsPerRun, int repeats, string path, List<string> filenames, string experimentName)
@@ -64,8 +55,27 @@ namespace CO1
             }
         }
 
+        public static void runHybridSolver(int secondsPerRun, int repeats, string path, List<string> filenames, string experimentName)
+        {
+            Console.WriteLine("Run Hybrid Solver");
 
-            public static void runSimulatedAnnealing(int secondsPerRun, int repeats, string path, List<string> filenames, string experimentName)
+            for (int i = 0; i < repeats; i++)
+            {
+                //Parallel.ForEach(filenames, (filename) =>
+                //{
+                foreach (string filename in filenames)
+                {
+                    Console.WriteLine(String.Format("Current File: {0}", filename));
+                    ProblemInstance problem = new ProblemInstance(path + "\\" + filename);
+                    (string fpInfo, string fpSchedule) = getFilepaths(filename, experimentName);
+
+                    VLNSSolver solver = new VLNSSolver(problem);
+                    solver.solve(secondsPerRun, fpInfo, fpSchedule, true);
+                }
+            }
+        }
+
+        public static void runSimulatedAnnealing(int secondsPerRun, int repeats, string path, List<string> filenames, string experimentName)
         {
             Console.WriteLine("Run Simulated Annealing Solver");
 

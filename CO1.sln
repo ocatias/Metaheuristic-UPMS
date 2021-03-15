@@ -5,7 +5,9 @@ VisualStudioVersion = 16.0.30717.126
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CO1", "CO1\CO1.csproj", "{6A34BA37-C4ED-4829-819D-87106E7C3808}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{2B6116DC-12C8-4138-9DFE-A62A6BADB4F3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj", "{2B6116DC-12C8-4138-9DFE-A62A6BADB4F3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SASolver", "SASolver\SASolver.csproj", "{C8ADA7B5-6B72-40FE-A98F-0CA5B4D6036C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{2B6116DC-12C8-4138-9DFE-A62A6BADB4F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2B6116DC-12C8-4138-9DFE-A62A6BADB4F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2B6116DC-12C8-4138-9DFE-A62A6BADB4F3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C8ADA7B5-6B72-40FE-A98F-0CA5B4D6036C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C8ADA7B5-6B72-40FE-A98F-0CA5B4D6036C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C8ADA7B5-6B72-40FE-A98F-0CA5B4D6036C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C8ADA7B5-6B72-40FE-A98F-0CA5B4D6036C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

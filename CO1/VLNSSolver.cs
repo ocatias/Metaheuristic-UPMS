@@ -25,7 +25,7 @@ namespace CO1
 
         }
 
-        public void solve(int runtimeInSeconds, string filepathResultInfo, string filepathMachineSchedule)
+        public void solve(int runtimeInSeconds, string filepathResultInfo, string filepathMachineSchedule, bool isHybridSolver = false)
         {
             DateTime startTime = DateTime.UtcNow;
 
@@ -36,7 +36,21 @@ namespace CO1
 
             Random rnd = new Random();
 
-            List<int>[] schedules = Heuristics.createInitialSchedules(problem);
+            List<int>[] schedules;
+            if (!isHybridSolver)
+               schedules = Heuristics.createInitialSchedules(problem);
+            else
+            {
+                Console.WriteLine("HybridSolver");
+                SimulatedAnnealingSolver saSolver = new SimulatedAnnealingSolver(problem);
+                int saSolverRuntime = 0;
+                if (60 < runtimeInSeconds / 2)
+                    saSolverRuntime = 60;
+                else
+                    saSolverRuntime = (int) (runtimeInSeconds * 0.5);
+
+                schedules = saSolver.solveDirect(saSolverRuntime);
+            }
 
             SolutionCost cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
 
@@ -209,9 +223,16 @@ namespace CO1
 
             int millisecondsTime = (int)Math.Ceiling(timeRemainingInMS / nrIterations);
 
+            // If there is only machine we do not need to call the MIP solver multiple times
+            if (problem.machines == 1)
+                millisecondsTime = (int)timeRemainingInMS;
+
             List<int> allMachines = new List<int>();
             for (int i = 0; i < problem.machines; i++)
                 allMachines.Add(i);
+
+            int forbiddenPairsFoundInARow = 0;
+            const int MAXFORBIDDENPAIRSINAROW = 30;
 
             while (DateTime.UtcNow.Subtract(startTime).TotalMilliseconds < timeRemainingInMS)
             {
@@ -232,6 +253,7 @@ namespace CO1
                 // Clean TabuList if it is too full
                 if (recentlySolvedTL.Count() >= Math.Pow(2, problem.machines) - 1)
                 {
+                    Console.WriteLine("CLEAN TABU LIST");
                     recentlySolvedTL.clean(optimallySolvedTL);
                     millisecondsTime = runtimeInSeconds*1000 - (int)DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
                 }
@@ -269,8 +291,11 @@ namespace CO1
                     if (!recentlySolvedTL.isAllowedPairing(singleMachineIdx) || !optimallySolvedTL.isNotSubsetOfATabuPairing(singleMachineIdx))
                     {
                         Console.WriteLine("Fordbidden Pairing found.");
+                        forbiddenPairsFoundInARow++;
                         continue;
                     }
+                    else
+                        forbiddenPairsFoundInARow = 0;
                     SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
                     (schedules[singleMachineIdx], isOptimal) = sm.solveModel(timeForSolver, cost.tardinessPerMachine[singleMachineIdx]);
                     cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
@@ -302,8 +327,14 @@ namespace CO1
                 if (!recentlySolvedTL.isNotATabuPairing(machingesToChange))
                 {
                     Console.WriteLine("Fordbidden Pairing found.");
-                    continue;
+                    forbiddenPairsFoundInARow++;
+                    if (forbiddenPairsFoundInARow >= MAXFORBIDDENPAIRSINAROW)
+                        machingesToChange = findNextPairingNotInTabulist(recentlySolvedTL, optimallySolvedTL);
+                    else
+                        continue;
                 }
+                else
+                    forbiddenPairsFoundInARow = 0;
 
                 long tardinessBeforeForMachingesToChange = 0;
                 foreach (int m in machingesToChange)
@@ -354,6 +385,39 @@ namespace CO1
             Console.WriteLine(String.Format("{0}, tabu pairings found", recentlySolvedTL.nrOfTabuPairingsFound()));
         }
 
+
+        public List<int> findNextPairingNotInTabulist(TabuList recentlySolvedList, TabuList optimallySolvedList)
+        {
+            List<int> lengthOneList = new List<int>();
+            for (int i = 0; i < problem.machines; i++)
+                lengthOneList.Add(i);
+
+            List<List<int>> allElementsOffCurLength = new List<List<int>>();
+            foreach (int elem in lengthOneList)
+                allElementsOffCurLength.Add(new List<int>(elem));
+
+            for(int length = 1; length <= problem.machines; length++)
+            {
+                foreach (List<int> pairing in allElementsOffCurLength)
+                    if (recentlySolvedList.isNotATabuPairing(pairing) && optimallySolvedList.isNotSubsetOfATabuPairing(pairing))
+                        return pairing;
+
+                List<List<int>> allElementsOffCurLengthNew = new List<List<int>>();
+                foreach (List<int> pairing in allElementsOffCurLength)
+                {
+                    foreach(int elem in lengthOneList)
+                    {
+                        if (pairing.Contains(elem))
+                            continue;
+
+                        List<int> newList = new List<int>(pairing);
+                        newList.Add(elem);
+                        allElementsOffCurLength.Add(newList);
+                    }
+                }
+            }
+            return null;
+        }
 
         // Update the schedule info for a given machine 
         // note that if multiple machines change then this needs to be called for every single one of them otherwise the data becomes inconsistent
