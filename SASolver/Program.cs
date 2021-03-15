@@ -1,5 +1,6 @@
 ﻿using CO1;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace SASolver
@@ -28,15 +29,19 @@ namespace SASolver
 
             //(string outputFilePath, string outputFilePath2) = getFilepaths(filename, experimentName);
             ProblemInstance problem = new ProblemInstance(pathToInstance);
-            try
-            {
-                LinearModel linearModel = new LinearModel(problem);
-                linearModel.createModel(1800, "", "");
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
+
+
+            SimulatedAnnealingSolver solver = new SimulatedAnnealingSolver(problem, tmax, tmin, (int)ns, pI, pS, pB, pT, pM, Bmax);
+
+            List<int>[] schedule;
+
+            if (!produceFiles)
+                schedule = solver.solveDirect(runtime);
+            else
+                throw new Exception("Not implemented yet.");
+
+            (long tardiness, long makespan) = Verifier.calculateTardMakeSpanFromMachineAssignment(problem, schedule);
+            Console.Write(tardiness * 1000000 + makespan);
 
         }
     }

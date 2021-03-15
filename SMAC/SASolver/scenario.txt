@@ -1,0 +1,8 @@
+algo = python3 -u SA_wrapper.py
+paramfile = SAparams.pcs
+execdir = .
+deterministic = 0
+run_obj = quality
+overall_obj = PAR10
+wallclock-limit = 3600
+instance_file = instances.txt

@@ -1,0 +1,14 @@
+ta = python3 -u SA_wrapper.py
+execdir = .
+deterministic = False
+run_obj = quality
+overall_obj = PAR10
+par_factor = 10
+cost_for_crash = 2147483647.0
+algo_runs_timelimit = inf
+wallclock_limit = 3600.0
+always_race_default = False
+ta_run_limit = inf
+train_inst_fn = smac3-output_2021-03-15_17:29:35_726269/run_1/instances.txt
+initial_incumbent = DEFAULT
+pcs_fn = smac3-output_2021-03-15_17:29:35_726269/run_1/SAparams.json

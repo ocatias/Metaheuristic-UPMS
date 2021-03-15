@@ -16,22 +16,25 @@ namespace CO1
         private long currentStep;
 
         // Parameters:
-        int stepsBeforeCooling = 20339;
-        double coolingFactor = 0.93;
-        double tMin = 6.73;
-        double tMax = 2764.93;
-        double temperature;
+        int stepsBeforeCooling;
+        double coolingFactor, tMin, tMax, temperature;
         //int maxStepsSinceLastImprovement = 5000000; //Afterwards we will try and solve a subproblem explicitly
 
-        double probabilityInterMachineMove = 0.66;
-        double probabilityShiftMove = 0.84;
-        double probabilityBlockMove = 0.04;
-        double probabilityTardynessGuideance = 0.84;
-        double probabilityMakeSpanGuideance = 0.71;
+        double probabilityInterMachineMove, probabilityShiftMove, probabilityBlockMove, probabilityTardynessGuideance, probabilityMakeSpanGuideance;
 
-        public SimulatedAnnealingSolver(ProblemInstance problem)
+        public SimulatedAnnealingSolver(ProblemInstance problem, double tMax = 2764.93, double tMin = 6.73, int stepsBeforeCooling = 20339,
+            double probabilityInterMachineMove = 0.66, double probabilityShiftMove = 0.84, double probabilityBlockMove = 0.04, 
+            double probabilityTardynessGuideance = 0.84, double probabilityMakeSpanGuideance = 0.71, long BMax = 26)
         {
             this.problem = problem;
+            this.tMax = tMax;
+            this.tMin = tMin;
+            this.stepsBeforeCooling = stepsBeforeCooling;
+            this.probabilityInterMachineMove = probabilityInterMachineMove;
+            this.probabilityShiftMove = probabilityShiftMove;
+            this.probabilityBlockMove = probabilityBlockMove;
+            this.probabilityTardynessGuideance = probabilityTardynessGuideance;
+            this.probabilityMakeSpanGuideance = probabilityMakeSpanGuideance;
         }
 
         public List<int>[] solveDirect(int runtimeInSeconds)
@@ -98,8 +101,8 @@ namespace CO1
                         bestSchedules = Helpers.cloneSchedule(schedules);
                     }
                 }
-                if (currentStep % 10000000 == 0)
-                    Console.WriteLine(String.Format("Current: ({0}, {1}); Best: ({2},{3})", cost.tardiness, cost.makeSpan, lowestCost.tardiness, lowestCost.makeSpan));
+                //if (currentStep % 10000000 == 0)
+                //    Console.WriteLine(String.Format("Current: ({0}, {1}); Best: ({2},{3})", cost.tardiness, cost.makeSpan, lowestCost.tardiness, lowestCost.makeSpan));
 
             }
 
