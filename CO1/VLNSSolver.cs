@@ -16,18 +16,34 @@ namespace CO1
         private bool isSolvedOptimally = false;
         private TabuList optimallySolvedTL;
 
+        private SolutionCost cost;
+        private DateTime startTime;
+
+        int millisecondsAddedPerFailedImprovement;
+        float iter_baseValue, iter_dependencyOnJobs, iter_dependencyOnMachines;
+        long weightOneOpti, weightThreeOpti, weightForAllOptionsAbove3InTotal, weightChangeIfSolutionIsGood;
+        long weightTwoOpti = 20000;
+
         // How many jobs from firstList are tardy and can be put on the machine from secondList
         private List<List<ScheduleForDifferentMachineInfo>> scheduleInfo = new List<List<ScheduleForDifferentMachineInfo>>();
 
-        public VLNSSolver(ProblemInstance problem)
+        public VLNSSolver(ProblemInstance problem, int millisecondsAddedPerFailedImprovement = 2000, float iter_baseValue = 25, float iter_dependencyOnJobs = 0, float iter_dependencyOnMachines = 0, 
+            long weightOneOpti = 12000, long weightThreeOpti = 8000, long weightForAllOptionsAbove3InTotal = 1000, long weightChangeIfSolutionIsGood = +100)
         {
             this.problem = problem;
-
+            this.millisecondsAddedPerFailedImprovement = millisecondsAddedPerFailedImprovement;
+            this.iter_baseValue = iter_baseValue;
+            this.iter_dependencyOnJobs = iter_dependencyOnJobs;
+            this.iter_dependencyOnMachines = iter_dependencyOnMachines;
+            this.weightOneOpti = weightOneOpti;
+            this.weightThreeOpti = weightThreeOpti;
+            this.weightForAllOptionsAbove3InTotal = weightForAllOptionsAbove3InTotal;
+            this.weightChangeIfSolutionIsGood = weightChangeIfSolutionIsGood;
         }
 
-        public void solve(int runtimeInSeconds, string filepathResultInfo, string filepathMachineSchedule, bool isHybridSolver = false)
+        public List<int>[] solveDirect(int runtimeInSeconds, bool isHybridSolver = false)
         {
-            DateTime startTime = DateTime.UtcNow;
+            startTime = DateTime.UtcNow;
 
 
             // Create an empty environment, set options and start
@@ -38,7 +54,7 @@ namespace CO1
 
             List<int>[] schedules;
             if (!isHybridSolver)
-               schedules = Heuristics.createInitialSchedules(problem);
+                schedules = Heuristics.createInitialSchedules(problem);
             else
             {
                 Console.WriteLine("HybridSolver");
@@ -47,14 +63,14 @@ namespace CO1
                 if (60 < runtimeInSeconds / 2)
                     saSolverRuntime = 60;
                 else
-                    saSolverRuntime = (int) (runtimeInSeconds * 0.5);
+                    saSolverRuntime = (int)(runtimeInSeconds * 0.5);
 
                 schedules = saSolver.solveDirect(saSolverRuntime);
             }
 
-            SolutionCost cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
+            cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
 
-            for(int m = 0; m < problem.machines; m++)
+            for (int m = 0; m < problem.machines; m++)
             {
                 scheduleInfo.Add(new List<ScheduleForDifferentMachineInfo>());
                 updateScheduleInfo(m, Verifier.calcuTdMsScheduleInfoForSingleMachine(problem, schedules, m).Item3);
@@ -62,11 +78,18 @@ namespace CO1
             Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
             Console.WriteLine(String.Format("Best Result from Heuristic: ({0},{1})", cost.tardiness, cost.makeSpan));
 
-            solveSmallAmounts(startTime, ref schedules, env, ref cost, rnd, runtimeInSeconds, filepathResultInfo);
+            solveSmallAmounts(startTime, ref schedules, env, ref cost, rnd, runtimeInSeconds);
 
 
             Console.WriteLine(String.Format("Best Result from VLNS: ({0},{1})", cost.tardiness, cost.makeSpan));
             Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
+
+            return schedules;
+        }
+
+        public void solve(int runtimeInSeconds, string filepathResultInfo, string filepathMachineSchedule, bool isHybridSolver = false)
+        {
+            List<int>[] schedules = solveDirect(runtimeInSeconds, isHybridSolver);
 
             using (StreamWriter outputFile = new StreamWriter(filepathResultInfo))
             {
@@ -83,94 +106,12 @@ namespace CO1
             ResultExport.storeMachineSchedule(filepathMachineSchedule, problem, schedules);
         }
 
-
-        // First optimize only one machine, then two and so on;
-        private void solveRisingFalling(DateTime startTime, ref List<int>[] schedules, GRBEnv env, ref SolutionCost cost, Random rnd, int runtimeInSeconds)
+        private void solveSmallAmounts(DateTime startTime, ref List<int>[] schedules, GRBEnv env, ref SolutionCost cost, Random rnd, int runtimeInSeconds)
         {
-            double timeRemainingInMS = runtimeInSeconds*1000 - DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
 
-            List<int> changedMachines = new List<int>();
+            long weightChangeIfSolutionIsBadAndOptimal = -weightChangeIfSolutionIsGood;
+            int nrIterations = (int)Math.Ceiling(iter_baseValue + iter_dependencyOnJobs * problem.jobs + iter_dependencyOnMachines * problem.machines);
 
-            for (int singleMachineIdx = 0; singleMachineIdx < problem.machines; singleMachineIdx++)
-            {
-                SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
-                schedules[singleMachineIdx] = sm.solveModel((int)(timeRemainingInMS / 10 / problem.machines), cost.tardinessPerMachine[singleMachineIdx]).Item1;
-                changedMachines.Add(singleMachineIdx);
-            }
-
-            cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
-            Console.WriteLine(String.Format("Best Result from VLNS: ({0},{1})", cost.tardiness, cost.makeSpan));
-
-            MachineToOptimizeHeuristic machineSelector = new SelectByTardiness();
-            //MachineToOptimizeHeuristic machineSelector = new SelectByFindingBigProblems();
-
-            List<int> nrMachinesToSolveList = new List<int>();
-
-            for (int i = 2; i <= problem.machines; i++)
-                nrMachinesToSolveList.Add(i);
-
-            for (int i = problem.machines - 1; i > 1; i--)
-                nrMachinesToSolveList.Add(i);
-
-            timeRemainingInMS = runtimeInSeconds * 1000 - DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
-            double timePerNr = timeRemainingInMS * 0.9 / (nrMachinesToSolveList.Count);
-
-
-            foreach (int nrOfMachinesToSolve in nrMachinesToSolveList)
-            {
-                int millisecondsTime = (int)Math.Ceiling(timePerNr / (problem.machines / nrOfMachinesToSolve));
-
-                machineSelector.fillInfo(cost, schedules, scheduleInfo);
-
-                while (machineSelector.areMachinesLeft())
-                {
-                    List<int> machingesToChange = machineSelector.selectMachines(nrOfMachinesToSolve);
-
-                    long tardinessBefore = 0;
-                    foreach (int m in machingesToChange)
-                        tardinessBefore += cost.tardinessPerMachine[m];
-
-                    MultiMachineModel tm = new MultiMachineModel(problem, env, schedules, machingesToChange);
-                    bool isOptimal;
-                    (schedules, isOptimal) = tm.solveModel(millisecondsTime, tardinessBefore, !(rnd.NextDouble() < probabilityOptimizeMakespan));
-
-                    foreach (int m in machingesToChange)
-                    {
-                        List<Tuple<int, long>> scheduleInfoForMachine;
-                        (cost.tardinessPerMachine[m], cost.makeSpanPerMachine[m], scheduleInfoForMachine) = Verifier.calcuTdMsScheduleInfoForSingleMachine(problem, schedules, m);
-                        updateScheduleInfo(m, scheduleInfoForMachine);
-                    }
-                    cost.updateTardiness();
-                    cost.updateMakeSpan();
-
-                    Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
-                }
-
-                cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
-
-            }
-
-            for (int singleMachineIdx = 0; singleMachineIdx < problem.machines; singleMachineIdx++)
-            {
-                SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
-                schedules[singleMachineIdx] = sm.solveModel((int)(timeRemainingInMS / problem.machines), cost.tardinessPerMachine[singleMachineIdx]).Item1;
-                changedMachines.Add(singleMachineIdx);
-            }
-
-            cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
-        }
-
-        private void solveSmallAmounts(DateTime startTime, ref List<int>[] schedules, GRBEnv env, ref SolutionCost cost, Random rnd, int runtimeInSeconds, string outputFile)
-        {
-            int millisecondsAddedPerFailedImprovement = 2000;
-
-            int nrIterations = 30;
-
-            long weightOneOpti = 12000;
-            long weightTwoOpti = 20000;
-            long weightThreeOpti = 8000;
-
-            long weightForAllOptionsAbove3InTotal = 1000;
 
             long weightManyOpti = 0; 
             long weightVariance = 0; 
@@ -181,8 +122,7 @@ namespace CO1
                 weightVariance = (10 - weightManyOpti) / (problem.machines - 3);
             }
 
-            long weightChangeIfSolutionIsGood = +100;
-            long weightChangeIfSolutionIsBadAndOptimal = -500;
+            
 
             List<WeightedItem<int>> choices = new List<WeightedItem<int>> {
                 new WeightedItem<int>(1, weightOneOpti), new  WeightedItem<int>(2, weightTwoOpti),
