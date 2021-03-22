@@ -17,12 +17,14 @@ namespace CO1
         private List<int> scheduleInitialCombinedWithoutDummy = new List<int>();
 
         private List<int> machinesToChange;
+        private List<Tuple<int, int, int>> jobsToFreeze;
 
-        public MultiMachineModel(ProblemInstance problem, GRBEnv env, List<int>[] schedule, List<int> machinesToChange)
+        public MultiMachineModel(ProblemInstance problem, GRBEnv env, List<int>[] schedule, List<int> machinesToChange, List<Tuple<int, int, int>> jobsToFreeze = null)
         {
             this.env = env;
             this.problem = problem;
             this.schedule = schedule;
+            this.jobsToFreeze = jobsToFreeze;
             foreach (int m in machinesToChange)
             {
                 this.scheduleInitialCombinedWithoutDummy.AddRange(schedule[m]);
@@ -54,17 +56,17 @@ namespace CO1
             GRBVar[,,] X = new GRBVar[jobsInclDummy, jobsInclDummy, problem.machines];
             GRBVar[] C = new GRBVar[jobsInclDummy];
             GRBVar[] T = new GRBVar[jobsInclDummy];
-            GRBVar Cmax = model.AddVar(0.0, GRB.INFINITY, 0.0, GRB.INTEGER, "C,ax");
+            GRBVar Cmax = model.AddVar(0.0, GRB.INFINITY, 0.0, GRB.INTEGER, "Cmax");
             GRBVar[,] Y = new GRBVar[jobsInclDummy, problem.machines];
 
             // ToDo = Probably need a bigger and not fixed value
             int V = 100000;
 
             initializeVariables(jobsInclDummy, model, X, C, T, Cmax, Y);
+            setInitialValues(jobsInclDummy, model, X, C, T, Cmax, Y);
             setConstraints(jobsInclDummy, model, X, C, T, Cmax, Y, V);
             setFunctionToMinimize(jobsInclDummy, model, X, C, T, Cmax, Y, V, optimizePrimarilyForTardiness);
 
-            setInitialValues(jobsInclDummy, model, X, C, T, Cmax, Y);
 
             model.Set("TimeLimit", (milliseconds / 1000.0).ToString());
 
@@ -78,6 +80,7 @@ namespace CO1
 
             model.Optimize();
             Console.WriteLine(String.Format("\tMIP Gap: {0:C2}%", model.MIPGap.ToString()));
+            Console.WriteLine(String.Format("Objval from gurobi: {0}", model.ObjVal));
 
             if (model.Status == 3)
                 Console.WriteLine("----------------------------------");
@@ -126,6 +129,13 @@ namespace CO1
                     foreach (int m in machinesToChange)
                     {
                         int xValue = j != 0 || m != machine ? 0 : 1;
+
+                        Tuple<int, int, int> frozenJob = jobsToFreeze.Where(p => p.Item1 == j - 1 && p.Item2 == schedule[machine][0]).FirstOrDefault();
+                        if (frozenJob != null)
+                        {
+                            model.Remove(X[j, schedule[machine][0] + 1, m]);
+                            X[j, schedule[machine][0] + 1, m] = model.AddVar(xValue, xValue, 0.0, GRB.BINARY, "X_" + j.ToString() + "," + (schedule[machine][0] + 1).ToString() + "," + m.ToString());
+                        }
                         X[j, schedule[machine][0] + 1, m].Start = xValue;
                     }
                 }
@@ -133,6 +143,13 @@ namespace CO1
                 foreach (int m in machinesToChange)
                 {
                     int yValue = m != machine ? 0 : 1;
+                    Tuple<int, int, int> frozenJob = jobsToFreeze.Where(p => p.Item1 == schedule[machine][0] || p.Item2 == schedule[machine][0]).FirstOrDefault();
+                    if (frozenJob != null)
+                    {
+                        model.Remove(Y[schedule[machine][0] + 1, m]);
+                        Y[schedule[machine][0] + 1, m] = model.AddVar(yValue, yValue, 0.0, GRB.BINARY, "Y_" + (schedule[machine][0] + 1).ToString() + "," + m.ToString());
+                    }
+
                     Y[schedule[machine][0] + 1, m].Start = yValue;
                     //Console.WriteLine("Y_" + (schedule[machine][0] + 1).ToString() + ", " + m.ToString() + ": " + yValue.ToString());
                 }
@@ -156,6 +173,13 @@ namespace CO1
                         foreach (int m in machinesToChange)
                         {
                             int xValue = j != schedule[machine][i - 1] + 1 || m != machine ? 0 : 1;
+
+                            Tuple<int, int, int> frozenJob = jobsToFreeze.Where(p => p.Item1 == j - 1 && p.Item2 == schedule[machine][i]).FirstOrDefault();
+                            if (frozenJob != null)
+                            {
+                                model.Remove(X[j, schedule[machine][i] + 1, m]);
+                                X[j, schedule[machine][i] + 1, m] = model.AddVar(xValue, xValue, 0.0, GRB.BINARY, "X_" + j.ToString() + "," + (schedule[machine][0] + 1).ToString() + "," + m.ToString());
+                            }
                             X[j, schedule[machine][i] + 1, m].Start = xValue;
                         }
                     }
@@ -164,6 +188,13 @@ namespace CO1
                     foreach (int m in machinesToChange)
                     {
                         int yValue = m != machine ? 0 : 1;
+                        Tuple<int, int, int> frozenJob = jobsToFreeze.Where(p => p.Item1 == schedule[machine][i]  || p.Item2 == schedule[machine][i]).FirstOrDefault();
+                        if (frozenJob != null)
+                        {
+                            model.Remove(Y[schedule[machine][i] + 1, m]);
+                            Y[schedule[machine][i] + 1, m] = model.AddVar(yValue, yValue, 0.0, GRB.BINARY, "Y_" + (schedule[machine][i] + 1).ToString() + "," + m.ToString());
+                        }
+
                         Y[schedule[machine][i] + 1, m].Start = yValue;
                         //Console.WriteLine("Y_" + (schedule[machine][i] + 1).ToString() + ", " + m.ToString() + ": " + yValue.ToString());
 
@@ -185,9 +216,17 @@ namespace CO1
             {
                 foreach (int j in scheduleInitialCombinedWithDummy)
                 {
+                    Tuple<int, int, int> frozenJob = jobsToFreeze.Where(p => p.Item1 -1 == i && p.Item2-1 == j).FirstOrDefault();
                     foreach (int k in machinesToChange)
                     {
-                        X[i, j, k] = model.AddVar(0.0, 1.0, 0.0, GRB.BINARY, "X_" + i.ToString() + "," + j.ToString() + "," + k.ToString());
+                        //if (frozenJob == null)
+                            X[i, j, k] = model.AddVar(0.0, 1.0, 0.0, GRB.BINARY, "X_" + i.ToString() + "," + j.ToString() + "," + k.ToString());
+                        //else if (frozenJob.Item3 != k)
+                        //    X[i, j, k] = model.AddVar(0.0, 0.0, 0.0, GRB.BINARY, "X_" + i.ToString() + "," + j.ToString() + "," + k.ToString());
+                        //else if (frozenJob.Item3 == k)
+                        //    X[i, j, k] = model.AddVar(1.0, 1.0, 0.0, GRB.BINARY, "X_" + i.ToString() + "," + j.ToString() + "," + k.ToString());
+                        //else
+                        //    throw new Exception("Hey");
                     }
                 }
             }
@@ -207,9 +246,16 @@ namespace CO1
             // Constraint (25)
             foreach (int i  in scheduleInitialCombinedWithoutDummy)
             {
+                Tuple<int, int, int> frozenJob = jobsToFreeze.Where(p => p.Item1 == i || p.Item2 == i).FirstOrDefault();
+
                 foreach (int j in machinesToChange)
                 {
-                    Y[i, j] = model.AddVar(0.0, 1.0, 0.0, GRB.BINARY, "Y_" + i.ToString() + "," + j.ToString());
+                    //if(frozenJob == null)
+                        Y[i, j] = model.AddVar(0.0, 1.0, 0.0, GRB.BINARY, "Y_" + i.ToString() + "," + j.ToString());
+                    //else if(frozenJob.Item3 != j)
+                    //    Y[i, j] = model.AddVar(0.0, 0.0, 0.0, GRB.BINARY, "Y_" + i.ToString() + "," + j.ToString());
+                    //else if (frozenJob.Item3 == j)
+                    //    Y[i, j] = model.AddVar(1.0, 1.0, 0.0, GRB.BINARY, "Y_" + i.ToString() + "," + j.ToString());
                 }
             }
         }

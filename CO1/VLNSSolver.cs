@@ -23,11 +23,14 @@ namespace CO1
         float iter_baseValue, iter_dependencyOnJobs, iter_dependencyOnMachines;
         long weightOneOpti, weightThreeOpti, weightForAllOptionsAbove3InTotal, weightChangeIfSolutionIsGood;
         long weightTwoOpti = 20000;
+        float probability_freezing = 0.8f;
+        int minNrOfJobsToFreeze = 90;
+
 
         // How many jobs from firstList are tardy and can be put on the machine from secondList
         private List<List<ScheduleForDifferentMachineInfo>> scheduleInfo = new List<List<ScheduleForDifferentMachineInfo>>();
 
-        public VLNSSolver(ProblemInstance problem, int millisecondsAddedPerFailedImprovement = 2000, float iter_baseValue = 25, float iter_dependencyOnJobs = 0, float iter_dependencyOnMachines = 0, 
+        public VLNSSolver(ProblemInstance problem, int millisecondsAddedPerFailedImprovement = 2000, float iter_baseValue = 30, float iter_dependencyOnJobs = 0, float iter_dependencyOnMachines = 0, 
             long weightOneOpti = 12000, long weightThreeOpti = 8000, long weightForAllOptionsAbove3InTotal = 1000, long weightChangeIfSolutionIsGood = +100)
         {
             this.problem = problem;
@@ -122,7 +125,6 @@ namespace CO1
                 weightVariance = (10 - weightManyOpti) / (problem.machines - 3);
             }
 
-            
 
             List<WeightedItem<int>> choices = new List<WeightedItem<int>> {
                 new WeightedItem<int>(1, weightOneOpti), new  WeightedItem<int>(2, weightTwoOpti),
@@ -136,12 +138,10 @@ namespace CO1
                 choices.Add(new WeightedItem<int>(choices.Count, weightManyOpti));
                 weightManyOpti += weightVariance;
             }
-
-            
+         
             TabuList recentlySolvedTL = new TabuList();
             optimallySolvedTL = new TabuList();
             bool isOptimal;
-
 
             double timeRemainingInMS = runtimeInSeconds * 1000 - DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
 
@@ -260,8 +260,6 @@ namespace CO1
                 else
                     nrOfMachinesToSolve = choice;
 
-                //while (machineSelector.areMachinesLeft())
-                //{
                 List<int> machingesToChange = machineSelector.selectMachines(nrOfMachinesToSolve);
 
                 if (!recentlySolvedTL.isNotATabuPairing(machingesToChange))
@@ -277,10 +275,34 @@ namespace CO1
                     forbiddenPairsFoundInARow = 0;
 
                 long tardinessBeforeForMachingesToChange = 0;
+                int nrOfJobs = 0;
                 foreach (int m in machingesToChange)
+                {
                     tardinessBeforeForMachingesToChange += cost.tardinessPerMachine[m];
+                    nrOfJobs += schedules[m].Count;
+                }
 
-                MultiMachineModel tm = new MultiMachineModel(problem, env, schedules, machingesToChange);
+                List<Tuple<int, int, int>> jobsToFreeze = new List<Tuple<int, int, int>>(); // (Job1Id, Job2Id, Machine) 
+                if (nrOfJobs >= minNrOfJobsToFreeze && rnd.NextDouble() < probability_freezing)
+                {
+                    
+                    int maxJobsPerMachine = minNrOfJobsToFreeze / machingesToChange.Count;
+                    foreach (int m in machingesToChange)
+                    {
+                        List<int> machineSchedule = new List<int>(schedules[m]);
+                        while (machineSchedule.Count > maxJobsPerMachine)
+                        {
+                            int idx = rnd.Next(0, machineSchedule.Count - 1);
+                            jobsToFreeze.Add(new Tuple<int, int, int>(machineSchedule[idx], machineSchedule[idx + 1], m));
+                            machineSchedule.RemoveAt(idx + 1);
+                            machineSchedule.RemoveAt(idx);
+                        }
+                    }
+                    Console.WriteLine(String.Format("Freezing {0} pairs", jobsToFreeze.Count));
+                }
+
+
+                MultiMachineModel tm = new MultiMachineModel(problem, env, schedules, machingesToChange, jobsToFreeze);
 
                 (schedules, isOptimal) = tm.solveModel(timeForSolver, tardinessBeforeForMachingesToChange, !(rnd.NextDouble() < probabilityOptimizeMakespan));
 
@@ -305,12 +327,15 @@ namespace CO1
                     WeightedItem<int>.adaptWeight(ref choices, choice, weightChangeIfSolutionIsBadAndOptimal);
                 }
 
-                recentlySolvedTL.addPairing(machingesToChange);
-                if (isOptimal)
-                    optimallySolvedTL.addPairing(machingesToChange);
+                // Only add to tabu lists if we did not freeze
+                if (jobsToFreeze.Count == 0)
+                {
+                    recentlySolvedTL.addPairing(machingesToChange);
+                    if (isOptimal)
+                        optimallySolvedTL.addPairing(machingesToChange);
+                }
 
                 //Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
-                //}
 
                 //cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
 
