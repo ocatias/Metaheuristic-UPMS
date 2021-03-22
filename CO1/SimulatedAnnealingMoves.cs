@@ -8,7 +8,7 @@ namespace CO1
     {
         // returns (newSchedules, changedMachines)
         public static (List<int>[], List<int>) doSAStep(ProblemInstance problem, Random rnd, List<int>[] schedules, int makeSpanMachine, 
-            double probabilityTardynessGuideance, double probabilityInterMachineMove, double probabilityBlockMove, double probabilityShiftMove, double probabilityMakeSpanGuideance)
+            double probabilityTardynessGuideance, double probabilityInterMachineMove, double probabilityBlockMove, double probabilityShiftMove, double probabilityMakeSpanGuideance, int maxBlockLength)
         {
             List<int>[] tempSchedule;
             List<int> changedMachines;
@@ -21,14 +21,14 @@ namespace CO1
             if (doShiftMove)
             {
                 if (doBlockMove)
-                    (tempSchedule, changedMachines) = generateDoBlockShift(problem, schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine);
+                    (tempSchedule, changedMachines) = generateDoBlockShift(problem, schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine, maxBlockLength);
                 else
                     (tempSchedule, changedMachines) = generateDoShiftMove(problem, schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine);
             }
             else
             {
                 if (doBlockMove)
-                    (tempSchedule, changedMachines) = generateDoBlockSwaps(problem, schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine);
+                    (tempSchedule, changedMachines) = generateDoBlockSwaps(problem, schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine, maxBlockLength);
                 else
                     (tempSchedule, changedMachines) = generateDoSwapMove(problem, schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine);
             }
@@ -36,7 +36,7 @@ namespace CO1
             return (tempSchedule, changedMachines);
         }
 
-        public static (List<int>[], List<int>) generateDoBlockSwaps(ProblemInstance problem, List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove, bool doMakeSpanGuideance, int makeSpanMachine)
+        public static (List<int>[], List<int>) generateDoBlockSwaps(ProblemInstance problem, List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove, bool doMakeSpanGuideance, int makeSpanMachine, int maxBlockLength)
         {
             int machineJob1, machineJob2, job1Position, job2Position, blockLength1, blockLength2;
 
@@ -91,13 +91,27 @@ namespace CO1
 
                 if (job1Position < job2Position)
                 {
-                    blockLength1 = rnd.Next(0, job2Position - job1Position) + 1;
-                    blockLength2 = rnd.Next(0, schedules[machineJob2].Count - job2Position) + 1;
+                    if (job2Position - job1Position > maxBlockLength)
+                        blockLength1 = rnd.Next(0, maxBlockLength) + 1;
+                    else
+                        blockLength1 = rnd.Next(0, job2Position - job1Position) + 1;
+
+                    if (schedules[machineJob2].Count - job2Position > maxBlockLength)
+                        blockLength2 = rnd.Next(0, maxBlockLength) + 1;
+                    else
+                        blockLength2 = rnd.Next(0, schedules[machineJob2].Count - job2Position) + 1;
                 }
                 else
                 {
-                    blockLength2 = rnd.Next(0, job1Position - job2Position) + 1;
-                    blockLength1 = rnd.Next(0, schedules[machineJob1].Count - job1Position) + 1;
+                    if (job1Position - job2Position > maxBlockLength)
+                        blockLength2 = rnd.Next(0, maxBlockLength) + 1;
+                    else
+                        blockLength2 = rnd.Next(0, job1Position - job2Position) + 1;
+
+                    if (schedules[machineJob1].Count - job1Position > maxBlockLength)
+                        blockLength1 = rnd.Next(0, maxBlockLength) + 1;
+                    else
+                        blockLength1 = rnd.Next(0, schedules[machineJob1].Count - job1Position) + 1;
                 }
             }
 
@@ -160,7 +174,7 @@ namespace CO1
             }
         }
 
-        public static (List<int>[], List<int>) generateDoBlockShift(ProblemInstance problem, List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove, bool doMakeSpanGuideance, int makeSpanMachine)
+        public static (List<int>[], List<int>) generateDoBlockShift(ProblemInstance problem, List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove, bool doMakeSpanGuideance, int makeSpanMachine, int maxBlockLength)
         {
             int machineJob1, machineJob2;
             if (doMakeSpanGuideance)
@@ -219,9 +233,21 @@ namespace CO1
             else
             {
                 if (positionAtTargetMatchine < jobIndexToShift)
-                    blockLength = rnd.Next() % (schedules[machineJob1].Count - jobIndexToShift) + 1;
+                {
+                    if (schedules[machineJob1].Count - jobIndexToShift > maxBlockLength)
+                        blockLength = rnd.Next() % (maxBlockLength) + 1;
+                    else
+                        blockLength = rnd.Next() % (schedules[machineJob1].Count - jobIndexToShift) + 1;
+
+                }
                 else
-                    blockLength = rnd.Next() % (positionAtTargetMatchine - jobIndexToShift) + 1;
+                {
+
+                    if (positionAtTargetMatchine - jobIndexToShift > maxBlockLength)
+                        blockLength = rnd.Next() % (maxBlockLength) + 1;
+                    else
+                        blockLength = rnd.Next() % (positionAtTargetMatchine - jobIndexToShift) + 1;
+                }
             }
 
             List<int>[] tempSchedule = Helpers.cloneSchedule(schedules);

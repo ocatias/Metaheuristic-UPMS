@@ -16,15 +16,15 @@ namespace CO1
         private long currentStep;
 
         // Parameters:
-        int stepsBeforeCooling;
+        int stepsBeforeCooling, maxBlockLength;
         double coolingFactor, tMin, tMax, temperature;
         //int maxStepsSinceLastImprovement = 5000000; //Afterwards we will try and solve a subproblem explicitly
 
         double probabilityInterMachineMove, probabilityShiftMove, probabilityBlockMove, probabilityTardynessGuideance, probabilityMakeSpanGuideance;
 
-        public SimulatedAnnealingSolver(ProblemInstance problem, double tMax = 2764.93, double tMin = 6.73, int stepsBeforeCooling = 20339,
+        public SimulatedAnnealingSolver(ProblemInstance problem, double tMax = 276400.93, double tMin = 6.73, int stepsBeforeCooling = 20339,
             double probabilityInterMachineMove = 0.66, double probabilityShiftMove = 0.84, double probabilityBlockMove = 0.04, 
-            double probabilityTardynessGuideance = 0.84, double probabilityMakeSpanGuideance = 0.71, long BMax = 26)
+            double probabilityTardynessGuideance = 0.84, double probabilityMakeSpanGuideance = 0.71, int maxBlockLength = 30, double coolingFactor = 0.93)
         {
             this.problem = problem;
             this.tMax = tMax;
@@ -35,6 +35,9 @@ namespace CO1
             this.probabilityBlockMove = probabilityBlockMove;
             this.probabilityTardynessGuideance = probabilityTardynessGuideance;
             this.probabilityMakeSpanGuideance = probabilityMakeSpanGuideance;
+            this.maxBlockLength = maxBlockLength;
+            this.maxBlockLength = maxBlockLength;
+            this.coolingFactor = coolingFactor;
         }
 
         public List<int>[] solveDirect(int runtimeInSeconds)
@@ -62,17 +65,20 @@ namespace CO1
                 List<int>[] tempSchedule;
                 List<int> changedMachines;
                 (tempSchedule, changedMachines) = SimulatedAnnealingMoves.doSAStep(problem, rnd, schedules, cost.makeSpanMachine,
-                     probabilityTardynessGuideance, probabilityInterMachineMove, probabilityBlockMove, probabilityShiftMove, probabilityMakeSpanGuideance);
+                     probabilityTardynessGuideance, probabilityInterMachineMove, probabilityBlockMove, probabilityShiftMove, probabilityMakeSpanGuideance, maxBlockLength);
                 
                 currentStep++;
                 if ((currentStep - stepsBeforeCooling * howOftenHaveWeCooled) > stepsBeforeCooling)
                 {
                     howOftenHaveWeCooled++;
-                    temperature = temperature * coolingFactor;
+                    temperature *= coolingFactor;
 
                     // Reheat
                     if (temperature <= tMin)
+                    {
+                        //Console.WriteLine(String.Format("Reheat: {0} -> {1}", temperature, tMax));
                         temperature = tMax;
+                    }
                 }
 
                 if (tempSchedule == null)
@@ -89,7 +95,8 @@ namespace CO1
                 if (costTemp.isBetterThan(cost) ||
                     (rnd.NextDouble() <= Math.Exp(-(Helpers.cost(costTemp.tardiness, costTemp.makeSpan) - Helpers.cost(cost.tardiness, cost.makeSpan)) / temperature)))
                 {
-
+                    //if (cost.tardiness < costTemp.tardiness)
+                    //    Console.WriteLine(String.Format("{0}: {1} -> {2}", currentStep, cost.tardiness, costTemp.tardiness));
 
                     schedules = tempSchedule;
                     cost = costTemp;
@@ -117,6 +124,8 @@ namespace CO1
         // Simmulated Annealing with Reheating
         public void solve(int runtimeInSeconds, string filepathResultInfo, string filepathMachineSchedule)
         {
+            solveDirect(runtimeInSeconds);
+
             Console.WriteLine(String.Format("Best Result: ({0},{1})", cost.tardiness, cost.makeSpan));
 
             Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);

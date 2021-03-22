@@ -23,7 +23,7 @@ namespace SASolver
             double pB = double.Parse(args[8], CultureInfo.InvariantCulture);
             double pT = double.Parse(args[9], CultureInfo.InvariantCulture);
             double pM = double.Parse(args[10], CultureInfo.InvariantCulture);
-            long Bmax = long.Parse(args[11]);
+            int Bmax = int.Parse(args[11]);
             double alpha = double.Parse(args[12], CultureInfo.InvariantCulture);
 
 
@@ -31,7 +31,7 @@ namespace SASolver
             ProblemInstance problem = new ProblemInstance(pathToInstance);
 
 
-            SimulatedAnnealingSolver solver = new SimulatedAnnealingSolver(problem, tmax, tmin, (int)ns, pI, pS, pB, pT, pM, Bmax);
+            SimulatedAnnealingSolver solver = new SimulatedAnnealingSolver(problem, tmax, tmin, (int)ns, pI, pS, pB, pT, pM, Bmax, alpha);
 
             List<int>[] schedule;
 
