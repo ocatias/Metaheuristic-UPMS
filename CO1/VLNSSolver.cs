@@ -30,7 +30,20 @@ namespace CO1
         // How many jobs from firstList are tardy and can be put on the machine from secondList
         private List<List<ScheduleForDifferentMachineInfo>> scheduleInfo = new List<List<ScheduleForDifferentMachineInfo>>();
 
-        public VLNSSolver(ProblemInstance problem, int millisecondsAddedPerFailedImprovement = 2000, float iter_baseValue = 30, float iter_dependencyOnJobs = 0, float iter_dependencyOnMachines = 0, 
+        public VLNSSolver(ProblemInstance problem, VLNS_parameter parameter)
+        {
+            this.problem = problem;
+            this.millisecondsAddedPerFailedImprovement = parameter.millisecondsAddedPerFailedImprovement;
+            this.iter_baseValue = parameter.iter_baseValue;
+            this.iter_dependencyOnJobs = parameter.iter_dependencyOnJobs;
+            this.iter_dependencyOnMachines = parameter.iter_dependencyOnMachines;
+            this.weightOneOpti = parameter.weightOneOpti;
+            this.weightThreeOpti = parameter.weightThreeOpti;
+            this.weightForAllOptionsAbove3InTotal = parameter.weightForAllOptionsAbove3InTotal;
+            this.weightChangeIfSolutionIsGood = parameter.weightChangeIfSolutionIsGood;
+        }
+
+        public VLNSSolver(ProblemInstance problem, int millisecondsAddedPerFailedImprovement = 2000, float iter_baseValue = 30, float iter_dependencyOnJobs = 0.01f, float iter_dependencyOnMachines = 0.5f, 
             long weightOneOpti = 12000, long weightThreeOpti = 8000, long weightForAllOptionsAbove3InTotal = 1000, long weightChangeIfSolutionIsGood = +100)
         {
             this.problem = problem;
@@ -43,6 +56,8 @@ namespace CO1
             this.weightForAllOptionsAbove3InTotal = weightForAllOptionsAbove3InTotal;
             this.weightChangeIfSolutionIsGood = weightChangeIfSolutionIsGood;
         }
+
+
 
         public List<int>[] solveDirect(int runtimeInSeconds, bool isHybridSolver = false)
         {
@@ -150,7 +165,10 @@ namespace CO1
             for (int singleMachineIdx = 0; singleMachineIdx < problem.machines; singleMachineIdx++)
             {
                 SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
-                (schedules[singleMachineIdx], isOptimal) = sm.solveModel((int)(timeRemainingInMS / 10 / problem.machines), cost.tardinessPerMachine[singleMachineIdx]);
+                double timeToUse = timeRemainingInMS / nrIterations;
+                if (timeToUse > timeRemainingInMS)
+                    timeToUse = timeRemainingInMS;
+                (schedules[singleMachineIdx], isOptimal) = sm.solveModel((int)(timeToUse), cost.tardinessPerMachine[singleMachineIdx]);
                 recentlySolvedTL.addPairing(singleMachineIdx);
                 if (isOptimal)
                     optimallySolvedTL.addPairing(singleMachineIdx);
@@ -327,10 +345,10 @@ namespace CO1
                     WeightedItem<int>.adaptWeight(ref choices, choice, weightChangeIfSolutionIsBadAndOptimal);
                 }
 
-                // Only add to tabu lists if we did not freeze
+                recentlySolvedTL.addPairing(machingesToChange);
+                // Only add to OPTIMAL tabu lists if we did not freeze
                 if (jobsToFreeze.Count == 0)
                 {
-                    recentlySolvedTL.addPairing(machingesToChange);
                     if (isOptimal)
                         optimallySolvedTL.addPairing(machingesToChange);
                 }
@@ -368,14 +386,14 @@ namespace CO1
                         return pairing;
 
                 List<List<int>> allElementsOffCurLengthNew = new List<List<int>>();
-                foreach (List<int> pairing in allElementsOffCurLength)
+                for(int i = 0; i < allElementsOffCurLength.Count; i++)
                 {
                     foreach(int elem in lengthOneList)
                     {
-                        if (pairing.Contains(elem))
+                        if (allElementsOffCurLength[i].Contains(elem))
                             continue;
 
-                        List<int> newList = new List<int>(pairing);
+                        List<int> newList = new List<int>(allElementsOffCurLength[i]);
                         newList.Add(elem);
                         allElementsOffCurLength.Add(newList);
                     }

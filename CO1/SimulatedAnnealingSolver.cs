@@ -36,9 +36,24 @@ namespace CO1
             this.probabilityTardynessGuideance = probabilityTardynessGuideance;
             this.probabilityMakeSpanGuideance = probabilityMakeSpanGuideance;
             this.maxBlockLength = maxBlockLength;
-            this.maxBlockLength = maxBlockLength;
             this.coolingFactor = coolingFactor;
         }
+
+        public SimulatedAnnealingSolver(ProblemInstance problem, SA_parameter parameter)
+        {
+            this.problem = problem;
+            this.tMax = parameter.tMax;
+            this.tMin = parameter.tMin;
+            this.stepsBeforeCooling = (int)parameter.ns;
+            this.probabilityInterMachineMove = parameter.pI;
+            this.probabilityShiftMove = parameter.pS;
+            this.probabilityBlockMove = parameter.pB;
+            this.probabilityTardynessGuideance = parameter.pT;
+            this.probabilityMakeSpanGuideance = parameter.pM;
+            this.maxBlockLength = parameter.Bmax;
+            this.coolingFactor = parameter.alpha;
+        }
+
 
         public List<int>[] solveDirect(int runtimeInSeconds)
         {

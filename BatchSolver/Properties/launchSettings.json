@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "BatchSolver": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Experiments\\BatchesTest_Hybrid 1 hybrid 10  2000 25 0 0 12000 8000 1000 100 "
+    }
+  }
+}

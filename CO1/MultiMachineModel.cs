@@ -80,7 +80,7 @@ namespace CO1
 
             model.Optimize();
             Console.WriteLine(String.Format("\tMIP Gap: {0:C2}%", model.MIPGap.ToString()));
-            Console.WriteLine(String.Format("Objval from gurobi: {0}", model.ObjVal));
+            //Console.WriteLine(String.Format("Objval from gurobi: {0}", model.ObjVal));
 
             if (model.Status == 3)
                 Console.WriteLine("----------------------------------");
