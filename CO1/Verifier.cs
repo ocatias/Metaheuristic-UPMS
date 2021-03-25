@@ -35,23 +35,31 @@ namespace CO1
         }
 
 
-        public static SolutionCost updateTardMakeSpanMachineFromMachineAssignment(ProblemInstance problem, List<int>[] machinesOrder, SolutionCost prevSolution, List<int> machinesToUpdate)
+        public static SolutionCost updateTardMakeSpanMachineFromMachineAssignment(ProblemInstance problem, List<int>[] machinesOrder, ref SolutionCost prevSolution, List<int> machinesToUpdate, bool guaranteedNoDuplicates = false)
         {
-            SolutionCost newSolution = new SolutionCost(prevSolution);
+            //SolutionCost newSolution = new SolutionCost(prevSolution);
 
             // Ensure that we have no duplicate machines
-            machinesToUpdate = machinesToUpdate.Distinct().ToList();
+            if (!guaranteedNoDuplicates)
+                machinesToUpdate = machinesToUpdate.Distinct().ToList();
+
+            bool updateMakespan = false;
 
             foreach (int machine in machinesToUpdate)
             {
+                long prevMakespanOnMachine = prevSolution.makeSpanPerMachine[machine];
                 (long tardynessOnMachine, long makeSpan) = calculateTardMakeSpanMachineFromMachineAssignmentForSingleMachine(problem, machinesOrder, machine);
-                newSolution.tardiness = newSolution.tardiness - newSolution.tardinessPerMachine[machine] + tardynessOnMachine;
-                newSolution.tardinessPerMachine[machine] = tardynessOnMachine;
-                newSolution.makeSpanPerMachine[machine] = makeSpan;
-            }
-            newSolution.updateMakeSpan();
+                prevSolution.tardiness = prevSolution.tardiness - prevSolution.tardinessPerMachine[machine] + tardynessOnMachine;
+                prevSolution.tardinessPerMachine[machine] = tardynessOnMachine;
+                prevSolution.makeSpanPerMachine[machine] = makeSpan;
 
-            return newSolution;
+                if (makeSpan > prevSolution.makeSpan || prevMakespanOnMachine == prevSolution.makeSpan)
+                    updateMakespan = true;
+            }
+            if (updateMakespan)
+                prevSolution.updateMakeSpan();
+
+            return prevSolution;
         }
 
         // Returns (TardynessOnThisMachine, MakespanOnThisMachine)
@@ -63,20 +71,28 @@ namespace CO1
             if (machinesOrder[machine].Count == 0)
                 return (0,0);
 
-            currMakeSpan += problem.getSetupTimeForJob(0, machinesOrder[machine][0] + 1, machine);
-            currMakeSpan += problem.processingTimes[machinesOrder[machine][0], machine];
+            long setupTime, processingTime;
 
-            currTimeOnMachine += problem.getSetupTimeForJob(0, machinesOrder[machine][0] + 1, machine);
-            currTimeOnMachine += problem.processingTimes[machinesOrder[machine][0], machine];
+            setupTime = problem.getSetupTimeForJob(0, machinesOrder[machine][0] + 1, machine);
+            processingTime = problem.processingTimes[machinesOrder[machine][0], machine];
+
+            currMakeSpan += setupTime;
+            currMakeSpan += processingTime;
+
+            currTimeOnMachine += setupTime;
+            currTimeOnMachine += processingTime;
             tardiness += (currTimeOnMachine - problem.dueDates[machinesOrder[machine][0]]) > 0 ? currTimeOnMachine - problem.dueDates[machinesOrder[machine][0]] : 0;
 
             for (int i = 1; i < machinesOrder[machine].Count; i++)
             {
-                currMakeSpan += problem.getSetupTimeForJob(machinesOrder[machine][i - 1] + 1, machinesOrder[machine][i] + 1, machine);
-                currMakeSpan += problem.processingTimes[machinesOrder[machine][i], machine];
+                setupTime = problem.getSetupTimeForJob(machinesOrder[machine][i - 1] + 1, machinesOrder[machine][i] + 1, machine);
+                processingTime = problem.processingTimes[machinesOrder[machine][i], machine];
 
-                currTimeOnMachine += problem.getSetupTimeForJob(machinesOrder[machine][i - 1] + 1, machinesOrder[machine][i] + 1, machine);
-                currTimeOnMachine += problem.processingTimes[machinesOrder[machine][i], machine];
+                currMakeSpan += setupTime;
+                currMakeSpan += processingTime;
+
+                currTimeOnMachine += setupTime;
+                currTimeOnMachine += processingTime;
                 tardiness += (currTimeOnMachine - problem.dueDates[machinesOrder[machine][i]]) > 0 ? currTimeOnMachine - problem.dueDates[machinesOrder[machine][i]] : 0;
             }
 

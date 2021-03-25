@@ -10,14 +10,16 @@ namespace CO1
         public int makeSpanMachine;
         public List<long> tardinessPerMachine, makeSpanPerMachine;
 
-        public SolutionCost(SolutionCost prev)
+        public SolutionCost(SolutionCost prev, bool doNotStoreCostPerMachine = false)
         {
             this.makeSpan =  prev.makeSpan;
             this.tardiness = prev.tardiness;
             this.makeSpanMachine = prev.makeSpanMachine;
-            this.tardinessPerMachine = new List<long>(prev.tardinessPerMachine);
-            this.makeSpanPerMachine = new List<long>(prev.makeSpanPerMachine);
+            if(!doNotStoreCostPerMachine)
+                this.tardinessPerMachine = new List<long>(prev.tardinessPerMachine);
+                this.makeSpanPerMachine = new List<long>(prev.makeSpanPerMachine);
         }
+
 
         public SolutionCost(int nrOfMachines)
         {

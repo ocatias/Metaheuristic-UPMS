@@ -115,8 +115,8 @@ namespace CO1
                 }
             }
 
-            List<int>[] tempSchedule = Helpers.cloneSchedule(schedules);
-            doBlockSwap(problem, schedules, job1Position, job2Position, machineJob1, machineJob2, blockLength1, blockLength2);
+            List<int>[] tempSchedule = Helpers.cloneSchedule(schedules, new int[] { machineJob1, machineJob2 });
+            doBlockSwap(problem, tempSchedule, job1Position, job2Position, machineJob1, machineJob2, blockLength1, blockLength2);
             return (tempSchedule, new List<int>() { machineJob1, machineJob2 });
         }
 
@@ -250,7 +250,7 @@ namespace CO1
                 }
             }
 
-            List<int>[] tempSchedule = Helpers.cloneSchedule(schedules);
+            List<int>[] tempSchedule = Helpers.cloneSchedule(schedules, new int[] { machineJob1, machineJob2 });
             doBlockShift(problem, tempSchedule, jobIndexToShift, machineJob1, machineJob2, positionAtTargetMatchine, blockLength);
             return (tempSchedule, new List<int>() { machineJob1, machineJob2 });
         }
@@ -315,7 +315,7 @@ namespace CO1
             else
                 job2 = schedules[machineJob2][rnd.Next() % schedules[machineJob2].Count];
 
-            List<int>[] tempSchedule = Helpers.cloneSchedule(schedules);
+            List<int>[] tempSchedule = Helpers.cloneSchedule(schedules, new int[] { machineJob1, machineJob2 });
             doSwapMove(problem, tempSchedule, job1, job2, machineJob1, machineJob2);
             return (tempSchedule, new List<int>() { machineJob1, machineJob2 });
         }
@@ -366,7 +366,7 @@ namespace CO1
                 else
                     positionAtTargetMachine = rnd.Next() % (schedules[machineTo].Count);
             }
-            List<int>[] tempSchedule = Helpers.cloneSchedule(schedules);
+            List<int>[] tempSchedule = Helpers.cloneSchedule(schedules, new int[] { machineFrom, machineTo });
 
             doShiftMove(problem, tempSchedule, jobToShift, machineFrom, machineTo, positionAtTargetMachine);
 

@@ -29,7 +29,7 @@ namespace BatchSolver
             {
                 foreach (string filePath in files)
                 {
-                    string file = filePath.Split("\\").Last();
+                    string file = filePath.Split(Path.DirectorySeparatorChar).Last();
                     Console.WriteLine(file);
 
                     ProblemInstance problem = new ProblemInstance(filePath);
@@ -64,16 +64,16 @@ namespace BatchSolver
                 Directory.CreateDirectory(pathToStoreOutput);
 
             string currOutputFilename = filename;
-            string outputFilePath = pathToStoreOutput + "\\" + currOutputFilename + ".soln.info";
-            string outputFilePath2 = pathToStoreOutput + "\\" + currOutputFilename + ".soln";
+            string outputFilePath = pathToStoreOutput + Path.DirectorySeparatorChar + currOutputFilename + ".soln.info";
+            string outputFilePath2 = pathToStoreOutput + Path.DirectorySeparatorChar + currOutputFilename + ".soln";
 
             int i = 2;
             if (File.Exists(outputFilePath) || File.Exists(outputFilePath2))
             {
-                while (File.Exists(pathToStoreOutput + "\\" + currOutputFilename + i + ".soln") || File.Exists(pathToStoreOutput + "\\" + currOutputFilename + "_" + i + ".soln.info"))
+                while (File.Exists(pathToStoreOutput + Path.DirectorySeparatorChar + currOutputFilename + i + ".soln") || File.Exists(pathToStoreOutput + Path.DirectorySeparatorChar + currOutputFilename + "_" + i + ".soln.info"))
                     i++;
-                outputFilePath = pathToStoreOutput + "\\" + currOutputFilename + "_" + i + ".soln.info";
-                outputFilePath2 = pathToStoreOutput + "\\" + currOutputFilename + "_" + i + ".soln";
+                outputFilePath = pathToStoreOutput + Path.DirectorySeparatorChar + currOutputFilename + "_" + i + ".soln.info";
+                outputFilePath2 = pathToStoreOutput + Path.DirectorySeparatorChar + currOutputFilename + "_" + i + ".soln";
             }
             return (outputFilePath, outputFilePath2);
         }

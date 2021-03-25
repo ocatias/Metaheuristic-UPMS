@@ -8,11 +8,17 @@ namespace CO1
 {
     public static class Helpers
     {
-        public static List<int>[] cloneSchedule(List<int>[] schedules)
+        // onlyCloneThese must contain exactly 2 elements or be null!
+        public static List<int>[] cloneSchedule(List<int>[] schedules, int[] onlyCloneThese = null)
         {
             List<int>[] tempSchedule = new List<int>[schedules.Length];
             for (int i = 0; i < schedules.Length; i++)
-                tempSchedule[i] = new List<int>(schedules[i]);
+            {
+                if (onlyCloneThese == null || onlyCloneThese[0] == i || onlyCloneThese[1] == i)
+                    tempSchedule[i] = new List<int>(schedules[i]);
+                else
+                    tempSchedule[i] = schedules[i];
+            }
             return tempSchedule;
         }
 

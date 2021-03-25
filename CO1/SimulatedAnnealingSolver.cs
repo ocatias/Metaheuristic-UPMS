@@ -100,7 +100,12 @@ namespace CO1
                     continue;
 
                 SolutionCost costTemp = new SolutionCost(cost);
-                costTemp = Verifier.updateTardMakeSpanMachineFromMachineAssignment(problem, tempSchedule, costTemp, changedMachines);
+
+                // This requires us to only have 2 changed machines
+                if (changedMachines[0] == changedMachines[1])
+                    changedMachines.RemoveAt(1);
+
+                costTemp = Verifier.updateTardMakeSpanMachineFromMachineAssignment(problem, tempSchedule, ref costTemp, changedMachines, true);
 
                 if (costTemp.isBetterThan(cost))
                     stepsSinceLastImprovement = 0;
@@ -119,7 +124,7 @@ namespace CO1
                     // Elitism
                     if (cost.isBetterThan(lowestCost))
                     {
-                        lowestCost = new SolutionCost(cost);
+                        lowestCost = new SolutionCost(cost, true);
                         bestSchedules = Helpers.cloneSchedule(schedules);
                     }
                 }
@@ -131,7 +136,7 @@ namespace CO1
             if (lowestCost.isBetterThan(cost))
             {
                 cost = new SolutionCost(lowestCost);
-                schedules = Helpers.cloneSchedule(bestSchedules);
+                schedules = bestSchedules;
             }
             return schedules;
         }
