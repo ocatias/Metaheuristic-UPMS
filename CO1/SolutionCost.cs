@@ -9,15 +9,22 @@ namespace CO1
         public long makeSpan, tardiness;
         public int makeSpanMachine;
         public List<long> tardinessPerMachine, makeSpanPerMachine;
+        //public List<int>[] tardinessPerJob;
 
         public SolutionCost(SolutionCost prev, bool doNotStoreCostPerMachine = false)
         {
             this.makeSpan =  prev.makeSpan;
             this.tardiness = prev.tardiness;
             this.makeSpanMachine = prev.makeSpanMachine;
-            if(!doNotStoreCostPerMachine)
+            if (!doNotStoreCostPerMachine)
+            {
                 this.tardinessPerMachine = new List<long>(prev.tardinessPerMachine);
                 this.makeSpanPerMachine = new List<long>(prev.makeSpanPerMachine);
+                //this.tardinessPerJob = new List<int>[prev.tardinessPerJob.Length];
+                //for (int i = 0; i < prev.tardinessPerJob.Length; i++)
+                //    if(prev.tardinessPerJob[i] != null)
+                //        this.tardinessPerJob[i] = new List<int>(prev.tardinessPerJob[i]);
+            }
         }
 
 
@@ -30,6 +37,7 @@ namespace CO1
                 tardinessPerMachine.Add(0);
                 makeSpanPerMachine.Add(0);
             }
+            //this.tardinessPerJob = new List<int>[nrOfMachines];
         }
 
         public void updateMakeSpan()

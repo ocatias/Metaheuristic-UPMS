@@ -7,7 +7,7 @@ namespace CO1
     public static class SimulatedAnnealingMoves
     {
         // returns (newSchedules, changedMachines)
-        public static (List<int>[], List<int>) doSAStep(ProblemInstance problem, Random rnd, List<int>[] schedules, int makeSpanMachine, 
+        public static (List<int>[], List<int>) doSAStep(ProblemInstance problem, SolutionCost cost, Random rnd, List<int>[] schedules, int makeSpanMachine, 
             double probabilityTardynessGuideance, double probabilityInterMachineMove, double probabilityBlockMove, double probabilityShiftMove, double probabilityMakeSpanGuideance, int maxBlockLength)
         {
             List<int>[] tempSchedule;
@@ -21,22 +21,22 @@ namespace CO1
             if (doShiftMove)
             {
                 if (doBlockMove)
-                    (tempSchedule, changedMachines) = generateDoBlockShift(problem, schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine, maxBlockLength);
+                    (tempSchedule, changedMachines) = generateDoBlockShift(problem, cost, schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine, maxBlockLength);
                 else
-                    (tempSchedule, changedMachines) = generateDoShiftMove(problem, schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine);
+                    (tempSchedule, changedMachines) = generateDoShiftMove(problem, cost, schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine);
             }
             else
             {
                 if (doBlockMove)
-                    (tempSchedule, changedMachines) = generateDoBlockSwaps(problem, schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine, maxBlockLength);
+                    (tempSchedule, changedMachines) = generateDoBlockSwaps(problem, cost, schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine, maxBlockLength);
                 else
-                    (tempSchedule, changedMachines) = generateDoSwapMove(problem, schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine);
+                    (tempSchedule, changedMachines) = generateDoSwapMove(problem, cost, schedules, rnd, selectTardyJob, doInterMachineMove, doMakeSpanGuideance, makeSpanMachine);
             }
 
             return (tempSchedule, changedMachines);
         }
 
-        public static (List<int>[], List<int>) generateDoBlockSwaps(ProblemInstance problem, List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove, bool doMakeSpanGuideance, int makeSpanMachine, int maxBlockLength)
+        public static (List<int>[], List<int>) generateDoBlockSwaps(ProblemInstance problem, SolutionCost cost, List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove, bool doMakeSpanGuideance, int makeSpanMachine, int maxBlockLength)
         {
             int machineJob1, machineJob2, job1Position, job2Position, blockLength1, blockLength2;
 
@@ -63,7 +63,7 @@ namespace CO1
             if (machineJob1 != machineJob2)
             {
                 if (selectTardyJob)
-                    job1Position = Helpers.findTardyJobIdx(problem, schedules, rnd, machineJob1);
+                    job1Position = Helpers.findTardyJobIdx(problem, cost, schedules, rnd, machineJob1);
                 else
                     job1Position = rnd.Next() % schedules[machineJob1].Count;
 
@@ -77,7 +77,7 @@ namespace CO1
                     return (null, null);
 
                 if (selectTardyJob)
-                    job1Position = Helpers.findTardyJobIdx(problem, schedules, rnd, machineJob1);
+                    job1Position = Helpers.findTardyJobIdx(problem, cost, schedules, rnd, machineJob1);
                 else
                     job1Position = rnd.Next() % (schedules[machineJob1].Count - 1);
 
@@ -174,7 +174,7 @@ namespace CO1
             }
         }
 
-        public static (List<int>[], List<int>) generateDoBlockShift(ProblemInstance problem, List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove, bool doMakeSpanGuideance, int makeSpanMachine, int maxBlockLength)
+        public static (List<int>[], List<int>) generateDoBlockShift(ProblemInstance problem, SolutionCost cost, List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove, bool doMakeSpanGuideance, int makeSpanMachine, int maxBlockLength)
         {
             int machineJob1, machineJob2;
             if (doMakeSpanGuideance)
@@ -196,7 +196,7 @@ namespace CO1
 
             int jobIndexToShift;
             if (selectTardyJob)
-                jobIndexToShift = Helpers.findTardyJobIdx(problem, schedules, rnd, machineJob1);
+                jobIndexToShift = Helpers.findTardyJobIdx(problem, cost, schedules, rnd, machineJob1);
             else
                 jobIndexToShift = rnd.Next() % schedules[machineJob1].Count;
 
@@ -281,7 +281,7 @@ namespace CO1
             }
         }
 
-        public static (List<int>[], List<int>) generateDoSwapMove(ProblemInstance problem, List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove, bool doMakeSpanGuideance, int makeSpanMachine)
+        public static (List<int>[], List<int>) generateDoSwapMove(ProblemInstance problem, SolutionCost cost, List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove, bool doMakeSpanGuideance, int makeSpanMachine)
         {
             int machineJob1, machineJob2;
             if (doMakeSpanGuideance)
@@ -305,7 +305,7 @@ namespace CO1
 
             int job1, job2;
             if (selectTardyJob)
-                job1 = schedules[machineJob1][Helpers.findTardyJobIdx(problem, schedules, rnd, machineJob1)];
+                job1 = schedules[machineJob1][Helpers.findTardyJobIdx(problem, cost, schedules, rnd, machineJob1)];
             else
                 job1 = schedules[machineJob1][rnd.Next() % schedules[machineJob1].Count];
 
@@ -331,7 +331,7 @@ namespace CO1
             schedules[machineJob2][idx2] = job1;
         }
 
-        public static (List<int>[], List<int>) generateDoShiftMove(ProblemInstance problem, List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove, bool doMakeSpanGuideance, int makeSpanMachine)
+        public static (List<int>[], List<int>) generateDoShiftMove(ProblemInstance problem, SolutionCost cost, List<int>[] schedules, Random rnd, bool selectTardyJob, bool doInterMachineMove, bool doMakeSpanGuideance, int makeSpanMachine)
         {
 
             int machineFrom;
@@ -351,7 +351,7 @@ namespace CO1
 
             int jobToShift;
             if (selectTardyJob)
-                jobToShift = schedules[machineFrom][Helpers.findTardyJobIdx(problem, schedules, rnd, machineFrom)];
+                jobToShift = schedules[machineFrom][Helpers.findTardyJobIdx(problem, cost, schedules, rnd, machineFrom)];
             else
                 jobToShift = schedules[machineFrom][rnd.Next(0, schedules[machineFrom].Count)];
 

@@ -58,8 +58,10 @@ namespace CO1
         }
 
         // Finds a random tardy job in the schedule
-        public static int findTardyJobIdx(ProblemInstance problem, List<int>[] schedules, Random rnd, int machine)
+        public static int findTardyJobIdx(ProblemInstance problem, SolutionCost cost, List<int>[] schedules, Random rnd, int machine)
         {
+            if (cost.tardinessPerMachine[machine] == 0)
+                return rnd.Next(0, schedules[machine].Count);
             int selectedJob = -1;
             long[] tardiness = new long[schedules[machine].Count];
             long[] time = new long[schedules[machine].Count];

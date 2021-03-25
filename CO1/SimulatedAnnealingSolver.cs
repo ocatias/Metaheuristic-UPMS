@@ -79,7 +79,7 @@ namespace CO1
             {
                 List<int>[] tempSchedule;
                 List<int> changedMachines;
-                (tempSchedule, changedMachines) = SimulatedAnnealingMoves.doSAStep(problem, rnd, schedules, cost.makeSpanMachine,
+                (tempSchedule, changedMachines) = SimulatedAnnealingMoves.doSAStep(problem, cost, rnd, schedules, cost.makeSpanMachine,
                      probabilityTardynessGuideance, probabilityInterMachineMove, probabilityBlockMove, probabilityShiftMove, probabilityMakeSpanGuideance, maxBlockLength);
                 
                 currentStep++;
@@ -135,7 +135,7 @@ namespace CO1
 
             if (lowestCost.isBetterThan(cost))
             {
-                cost = new SolutionCost(lowestCost);
+                cost = new SolutionCost(lowestCost, true);
                 schedules = bestSchedules;
             }
             return schedules;

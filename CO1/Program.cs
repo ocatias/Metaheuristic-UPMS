@@ -22,13 +22,13 @@ namespace CO1
             //    "s_22-149-160_1.max", "s_4-16-20_1.max", "t_10-24-40_1.max", "t_15-77-80_1.max", "t_18-56-100_1.max", "t_20-76-100_1.max", "t_28-34-100_1.max", "t_3-12-200_1.max"  };
 
             List<string> allFilesInDirectory = new List<string>() { "p_1-364-580_1.max", "t_18-56-100_1.max", "s_22-149-160_1.max" };
-            //List<string> allFilesInDirectory = new List<string>() { "p_1-364-580_1.max"};
+            //List<string> allFilesInDirectory = new List<string>() { "s_22-149-160_1.max" };
 
             //allFilesInDirectory = allFilesInDirectory.OrderBy(x => Guid.NewGuid()).ToList();
 
             //runVLNS(60, 1, pathValidation, allFilesInDirectory, "2503_VLNS_60s");
             //runSimulatedAnnealing(10, 1, pathValidation, allFilesInDirectory, "0803_SA_10s");
-            runSimulatedAnnealing(60, 1, pathValidation, allFilesInDirectory, "2503_2_SA_60s");
+            runSimulatedAnnealing(60, 1, pathValidation, allFilesInDirectory, "2503_4_SA_60s");
             //runSimulatedAnnealing(1800, 1, pathValidation, allFilesInDirectory, "0803_SA_1800s");
 
             //runLinearModels("MIP_30Min_each");

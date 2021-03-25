@@ -28,6 +28,7 @@ namespace CO1
 
                 sc.makeSpanPerMachine[m] = makeSpanOnThisMachine;
                 sc.tardinessPerMachine[m] = tardinessOnThisMachine;
+                //sc.tardinessPerJob[m] = tardinessPerJob;
             }
             sc.updateMakeSpan();
             sc.updateTardiness();
@@ -52,6 +53,7 @@ namespace CO1
                 prevSolution.tardiness = prevSolution.tardiness - prevSolution.tardinessPerMachine[machine] + tardynessOnMachine;
                 prevSolution.tardinessPerMachine[machine] = tardynessOnMachine;
                 prevSolution.makeSpanPerMachine[machine] = makeSpan;
+                //prevSolution.tardinessPerJob[machine] = tardinessPerjob;
 
                 if (makeSpan > prevSolution.makeSpan || prevMakespanOnMachine == prevSolution.makeSpan)
                     updateMakespan = true;
@@ -66,7 +68,8 @@ namespace CO1
         public static (long, long) calculateTardMakeSpanMachineFromMachineAssignmentForSingleMachine(ProblemInstance problem, List<int>[] machinesOrder, int machine)
         {
             long tardiness = 0;
-            long currMakeSpan = 0, currTimeOnMachine = 0;
+            long currMakeSpan = 0, currTimeOnMachine = 0, currTardiness = 0;
+            //List<int> tardinessPerJob = new List<int>();
 
             if (machinesOrder[machine].Count == 0)
                 return (0,0);
@@ -76,24 +79,25 @@ namespace CO1
             setupTime = problem.getSetupTimeForJob(0, machinesOrder[machine][0] + 1, machine);
             processingTime = problem.processingTimes[machinesOrder[machine][0], machine];
 
-            currMakeSpan += setupTime;
-            currMakeSpan += processingTime;
+            currMakeSpan += setupTime + processingTime;
 
-            currTimeOnMachine += setupTime;
-            currTimeOnMachine += processingTime;
-            tardiness += (currTimeOnMachine - problem.dueDates[machinesOrder[machine][0]]) > 0 ? currTimeOnMachine - problem.dueDates[machinesOrder[machine][0]] : 0;
+            currTimeOnMachine += setupTime + processingTime;
+            currTardiness = (currTimeOnMachine - problem.dueDates[machinesOrder[machine][0]]) > 0 ? currTimeOnMachine - problem.dueDates[machinesOrder[machine][0]] : 0;
+            //tardinessPerJob.Add((int)currTardiness);
+            tardiness += currTardiness;
 
             for (int i = 1; i < machinesOrder[machine].Count; i++)
             {
                 setupTime = problem.getSetupTimeForJob(machinesOrder[machine][i - 1] + 1, machinesOrder[machine][i] + 1, machine);
+                setupTime = problem.getSetupTimeForJob(machinesOrder[machine][i - 1] + 1, machinesOrder[machine][i] + 1, machine);
                 processingTime = problem.processingTimes[machinesOrder[machine][i], machine];
 
-                currMakeSpan += setupTime;
-                currMakeSpan += processingTime;
+                currMakeSpan += setupTime + processingTime;
 
-                currTimeOnMachine += setupTime;
-                currTimeOnMachine += processingTime;
-                tardiness += (currTimeOnMachine - problem.dueDates[machinesOrder[machine][i]]) > 0 ? currTimeOnMachine - problem.dueDates[machinesOrder[machine][i]] : 0;
+                currTimeOnMachine += setupTime + processingTime;
+                currTardiness = (currTimeOnMachine - problem.dueDates[machinesOrder[machine][i]]) > 0 ? currTimeOnMachine - problem.dueDates[machinesOrder[machine][i]] : 0;
+                //tardinessPerJob.Add((int)currTardiness);
+                tardiness += currTardiness;
             }
 
             currMakeSpan += problem.getSetupTimeForJob(machinesOrder[machine][machinesOrder[machine].Count - 1] + 1, 0, machine);
