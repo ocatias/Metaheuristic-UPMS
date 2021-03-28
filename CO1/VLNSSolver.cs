@@ -19,13 +19,10 @@ namespace CO1
         private SolutionCost cost;
         private DateTime startTime;
 
-        int millisecondsAddedPerFailedImprovement;
-        float iter_baseValue, iter_dependencyOnJobs, iter_dependencyOnMachines;
+        int millisecondsAddedPerFailedImprovement, minNrOfJobsToFreeze;
+        float iter_baseValue, iter_dependencyOnJobs, iter_dependencyOnMachines, probability_freezing;
         long weightOneOpti, weightThreeOpti, weightForAllOptionsAbove3InTotal, weightChangeIfSolutionIsGood;
         long weightTwoOpti = 20000;
-        float probability_freezing = 0.8f;
-        int minNrOfJobsToFreeze = 90;
-
 
         // How many jobs from firstList are tardy and can be put on the machine from secondList
         private List<List<ScheduleForDifferentMachineInfo>> scheduleInfo = new List<List<ScheduleForDifferentMachineInfo>>();
@@ -41,10 +38,12 @@ namespace CO1
             this.weightThreeOpti = parameter.weightThreeOpti;
             this.weightForAllOptionsAbove3InTotal = parameter.weightForAllOptionsAbove3InTotal;
             this.weightChangeIfSolutionIsGood = parameter.weightChangeIfSolutionIsGood;
+            this.probability_freezing = parameter.probability_freezing;
+            this.minNrOfJobsToFreeze = parameter.minNrOfJobsToFreeze;
         }
 
         public VLNSSolver(ProblemInstance problem, int millisecondsAddedPerFailedImprovement = 2000, float iter_baseValue = 30, float iter_dependencyOnJobs = 0.01f, float iter_dependencyOnMachines = 0.5f, 
-            long weightOneOpti = 12000, long weightThreeOpti = 8000, long weightForAllOptionsAbove3InTotal = 1000, long weightChangeIfSolutionIsGood = +100)
+            long weightOneOpti = 12000, long weightThreeOpti = 8000, long weightForAllOptionsAbove3InTotal = 1000, long weightChangeIfSolutionIsGood = +100, int minNrOfJobsToFreeze = 90, float probability_freezing = 0.8f)
         {
             this.problem = problem;
             this.millisecondsAddedPerFailedImprovement = millisecondsAddedPerFailedImprovement;
@@ -55,6 +54,8 @@ namespace CO1
             this.weightThreeOpti = weightThreeOpti;
             this.weightForAllOptionsAbove3InTotal = weightForAllOptionsAbove3InTotal;
             this.weightChangeIfSolutionIsGood = weightChangeIfSolutionIsGood;
+            this.probability_freezing = probability_freezing;
+            this.minNrOfJobsToFreeze = minNrOfJobsToFreeze;
         }
 
 
