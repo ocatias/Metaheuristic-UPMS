@@ -102,7 +102,7 @@ namespace CO1
 
             Console.WriteLine(String.Format("Best Result from VLNS: ({0},{1})", cost.tardiness, cost.makeSpan));
             Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
-
+            env.Dispose();
             return schedules;
         }
 
