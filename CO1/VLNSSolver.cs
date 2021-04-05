@@ -191,7 +191,7 @@ namespace CO1
                 allMachines.Add(i);
 
             int forbiddenPairsFoundInARow = 0;
-            const int MAXFORBIDDENPAIRSINAROW = 30;
+            const int MAXFORBIDDENPAIRSINAROW = 10;
 
             while (DateTime.UtcNow.Subtract(startTime).TotalMilliseconds < timeRemainingInMS)
             {
@@ -279,23 +279,31 @@ namespace CO1
                 else
                     nrOfMachinesToSolve = choice;
 
-                List<int> machingesToChange = machineSelector.selectMachines(nrOfMachinesToSolve);
+                List<int> machinesToChange = machineSelector.selectMachines(nrOfMachinesToSolve);
 
-                if (!recentlySolvedTL.isNotATabuPairing(machingesToChange))
+  
+
+                if (!recentlySolvedTL.isNotATabuPairing(machinesToChange))
                 {
                     Console.WriteLine("Fordbidden Pairing found.");
                     forbiddenPairsFoundInARow++;
                     if (forbiddenPairsFoundInARow >= MAXFORBIDDENPAIRSINAROW)
-                        machingesToChange = findNextPairingNotInTabulist(recentlySolvedTL, optimallySolvedTL);
+                    {
+                        machinesToChange = findNextPairingNotInTabulist(recentlySolvedTL, optimallySolvedTL);
+                        forbiddenPairsFoundInARow = 0;
+                    }
                     else
                         continue;
                 }
                 else
                     forbiddenPairsFoundInARow = 0;
 
+                
+
+
                 long tardinessBeforeForMachingesToChange = 0;
                 int nrOfJobs = 0;
-                foreach (int m in machingesToChange)
+                foreach (int m in machinesToChange)
                 {
                     tardinessBeforeForMachingesToChange += cost.tardinessPerMachine[m];
                     nrOfJobs += schedules[m].Count;
@@ -305,8 +313,8 @@ namespace CO1
                 if (nrOfJobs >= minNrOfJobsToFreeze && rnd.NextDouble() < probability_freezing)
                 {
                     
-                    int maxJobsPerMachine = minNrOfJobsToFreeze / machingesToChange.Count;
-                    foreach (int m in machingesToChange)
+                    int maxJobsPerMachine = minNrOfJobsToFreeze / machinesToChange.Count;
+                    foreach (int m in machinesToChange)
                     {
                         List<int> machineSchedule = new List<int>(schedules[m]);
                         while (machineSchedule.Count > maxJobsPerMachine)
@@ -320,12 +328,18 @@ namespace CO1
                     Console.WriteLine(String.Format("Freezing {0} pairs", jobsToFreeze.Count));
                 }
 
+                // This is a failsafe that should never get triggered!
+                if (machinesToChange.Count == 0)
+                {
+                    for (int i = 0; i < problem.machines; i++)
+                        machinesToChange.Add(i);
+                }
 
-                MultiMachineModel tm = new MultiMachineModel(problem, env, schedules, machingesToChange, jobsToFreeze);
+                MultiMachineModel tm = new MultiMachineModel(problem, env, schedules, machinesToChange, jobsToFreeze);
 
                 (schedules, isOptimal) = tm.solveModel(timeForSolver, tardinessBeforeForMachingesToChange, !(rnd.NextDouble() < probabilityOptimizeMakespan));
 
-                foreach (int m in machingesToChange)
+                foreach (int m in machinesToChange)
                 {
                     List<Tuple<int, long>> scheduleInfoForMachine;
                     (cost.tardinessPerMachine[m], cost.makeSpanPerMachine[m], scheduleInfoForMachine) = Verifier.calcuTdMsScheduleInfoForSingleMachine(problem, schedules, m);
@@ -336,8 +350,8 @@ namespace CO1
 
                 if (cost.tardiness != tardinessBefore || cost.makeSpan != makespanBefore)
                 {
-                    recentlySolvedTL.removePairings(machingesToChange);
-                    optimallySolvedTL.removePairings(machingesToChange);
+                    recentlySolvedTL.removePairings(machinesToChange);
+                    optimallySolvedTL.removePairings(machinesToChange);
                     WeightedItem<int>.adaptWeight(ref choices, choice, weightChangeIfSolutionIsGood);
                 }
                 else
@@ -346,12 +360,13 @@ namespace CO1
                     WeightedItem<int>.adaptWeight(ref choices, choice, weightChangeIfSolutionIsBadAndOptimal);
                 }
 
-                recentlySolvedTL.addPairing(machingesToChange);
-                // Only add to OPTIMAL tabu lists if we did not freeze
+                // Only add to tabu lists if we did not freeze
                 if (jobsToFreeze.Count == 0)
                 {
+                    recentlySolvedTL.addPairing(machinesToChange);
+
                     if (isOptimal)
-                        optimallySolvedTL.addPairing(machingesToChange);
+                        optimallySolvedTL.addPairing(machinesToChange);
                 }
 
                 //Verifier.verifyModelSolution(problem, cost.tardiness, cost.makeSpan, schedules);
@@ -378,7 +393,7 @@ namespace CO1
 
             List<List<int>> allElementsOffCurLength = new List<List<int>>();
             foreach (int elem in lengthOneList)
-                allElementsOffCurLength.Add(new List<int>(elem));
+                allElementsOffCurLength.Add(new List<int> { elem });
 
             for(int length = 1; length <= problem.machines; length++)
             {
