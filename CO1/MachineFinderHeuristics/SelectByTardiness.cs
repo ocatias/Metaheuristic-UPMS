@@ -7,9 +7,11 @@ namespace CO1.MachineFinderHeuristics
     public class SelectByTardiness : MachineToOptimizeHeuristic
     {
         List<WeightedItem<int>> weightedMachinesList = new List<WeightedItem<int>>();
+        Random rnd;
 
-        public void fillInfo(SolutionCost cost, List<int>[] schedules, List<List<ScheduleForDifferentMachineInfo>> scheduleInfo)
+        public void fillInfo(SolutionCost cost, List<int>[] schedules, List<List<ScheduleForDifferentMachineInfo>> scheduleInfo, Random rnd)
         {
+            this.rnd = rnd;
             weightedMachinesList = new List<WeightedItem<int>>();
             for (int m = 0; m < schedules.Length; m++)
             {
@@ -23,7 +25,7 @@ namespace CO1.MachineFinderHeuristics
         {
             List<int> machines = new List<int>();
             while (machines.Count < nrToSelectAtMost)
-                machines.Add(WeightedItem<int>.ChooseAndRemove(ref weightedMachinesList));
+                machines.Add(WeightedItem<int>.ChooseAndRemove(ref weightedMachinesList, rnd));
 
             return machines;
         }

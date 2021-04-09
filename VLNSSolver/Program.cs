@@ -2,7 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-
+using System.IO;
+using System.Linq;
 
 namespace VLNSSolverCLI
 {
@@ -12,7 +13,7 @@ namespace VLNSSolverCLI
         {
             if (args.Length < 1)
                 Console.WriteLine("Arguments: pathToInstance runtime produceFiles millisecondsAddedPerFailedImprovement iter_baseValue iter_dependencyOnJobs iter_dependencyOnMachines " +
-                    "weightOneOpti weightThreeOpti weightForAllOptionsAbove3InTotal weightChangeIfSolutionIsGood");
+                    "weightOneOpti weightThreeOpti weightForAllOptionsAbove3InTotal weightChangeIfSolutionIsGood pathToStoreResults");
 
             string pathToInstance = args[0];
             int runtime = int.Parse(args[1]);
@@ -35,11 +36,37 @@ namespace VLNSSolverCLI
             if (!produceFiles)
                 schedule = solver.solveDirect(runtime);
             else
-                throw new Exception("Not implemented yet.");
-
+            {
+                string file = pathToInstance.Split(Path.DirectorySeparatorChar).Last();
+                string pathToStoreResults = args[13];
+                (string fpInfo, string fpSchedule) = getFilepaths(file.Split('.')[0], pathToStoreResults);
+                solver.solve(runtime, fpInfo, fpSchedule);
+                return;
+            }
+            
             (long tardiness, long makespan) = Verifier.calculateTardMakeSpanFromMachineAssignment(problem, schedule);
             Console.Write(tardiness * 1000000 + makespan);
 
+        }
+
+        public static (string fpInfo, string fpSchedule) getFilepaths(string filename, string pathToStoreOutput)
+        {
+            if (!Directory.Exists(pathToStoreOutput))
+                Directory.CreateDirectory(pathToStoreOutput);
+
+            string currOutputFilename = filename;
+            string outputFilePath = pathToStoreOutput + Path.DirectorySeparatorChar + currOutputFilename + ".soln.info";
+            string outputFilePath2 = pathToStoreOutput + Path.DirectorySeparatorChar + currOutputFilename + ".soln";
+
+            int i = 2;
+            if (File.Exists(outputFilePath) || File.Exists(outputFilePath2))
+            {
+                while (File.Exists(pathToStoreOutput + Path.DirectorySeparatorChar + currOutputFilename + i + ".soln") || File.Exists(pathToStoreOutput + Path.DirectorySeparatorChar + currOutputFilename + "_" + i + ".soln.info"))
+                    i++;
+                outputFilePath = pathToStoreOutput + Path.DirectorySeparatorChar + currOutputFilename + "_" + i + ".soln.info";
+                outputFilePath2 = pathToStoreOutput + Path.DirectorySeparatorChar + currOutputFilename + "_" + i + ".soln";
+            }
+            return (outputFilePath, outputFilePath2);
         }
     }
 }

@@ -11,7 +11,6 @@ namespace CO1
         private T value;
         private long weight;
         private long cumulativeSum;
-        private static Random rndInst = new Random();
 
         public WeightedItem(T value, long weight)
         {
@@ -24,7 +23,7 @@ namespace CO1
             return value;
         }
 
-        private static WeightedItem<T> ChooseWeightedItem(List<WeightedItem<T>> items)
+        private static WeightedItem<T> ChooseWeightedItem(List<WeightedItem<T>> items, Random rnd)
         {
             long cumulSum = 0;
             long cnt = items.Count();
@@ -35,20 +34,20 @@ namespace CO1
                 items[slot].cumulativeSum = cumulSum;
             }
 
-            double divSpot = rndInst.NextDouble() * cumulSum;
+            double divSpot = rnd.NextDouble() * cumulSum;
             return items.FirstOrDefault(i => i.cumulativeSum >= divSpot);
         }
 
-        public static T Choose(List<WeightedItem<T>> items)
+        public static T Choose(List<WeightedItem<T>> items, Random rnd)
         {
-            WeightedItem<T> chosen = ChooseWeightedItem(items);
+            WeightedItem<T> chosen = ChooseWeightedItem(items, rnd);
             if (chosen == null) throw new Exception("No item chosen - there seems to be a problem with the probability distribution.");
             return chosen.value;
         }
 
-        public static T ChooseAndRemove(ref List<WeightedItem<T>> items)
+        public static T ChooseAndRemove(ref List<WeightedItem<T>> items, Random rnd)
         {
-            WeightedItem<T> chosen = ChooseWeightedItem(items);
+            WeightedItem<T> chosen = ChooseWeightedItem(items, rnd);
             if (chosen == null) throw new Exception("No item chosen - there seems to be a problem with the probability distribution.");
             items.Remove(chosen);
             return chosen.value;

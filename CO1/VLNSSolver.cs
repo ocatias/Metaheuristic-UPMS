@@ -191,7 +191,7 @@ namespace CO1
                 allMachines.Add(i);
 
             int forbiddenPairsFoundInARow = 0;
-            const int MAXFORBIDDENPAIRSINAROW = 10;
+            const int MAXFORBIDDENPAIRSINAROW = 5;
 
             while (DateTime.UtcNow.Subtract(startTime).TotalMilliseconds < timeRemainingInMS)
             {
@@ -216,7 +216,7 @@ namespace CO1
                     recentlySolvedTL.clean(optimallySolvedTL);
                     millisecondsTime = runtimeInSeconds*1000 - (int)DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
                 }
-                int choice = WeightedItem<int>.Choose(choices);
+                int choice = WeightedItem<int>.Choose(choices, rnd);
 
                 MachineToOptimizeHeuristic machineSelector;
                 if (rnd.NextDouble() < 0.1)
@@ -230,7 +230,7 @@ namespace CO1
                     machineSelector = machineSelector2;
                 }
 
-                machineSelector.fillInfo(cost, schedules, scheduleInfo);
+                machineSelector.fillInfo(cost, schedules, scheduleInfo, rnd);
 
                 long tardinessBefore = cost.tardiness;
                 long makespanBefore = cost.makeSpan;
@@ -243,52 +243,65 @@ namespace CO1
                 if (maxTimeForSolver <= 0)
                     break;
 
+                List<int> machinesToChange = null;
+
                 if (choice == 1)
                 {
                     int singleMachineIdx = machineSelector.selectMachines(1).First();
 
                     if (!recentlySolvedTL.isAllowedPairing(singleMachineIdx) || !optimallySolvedTL.isNotSubsetOfATabuPairing(singleMachineIdx))
                     {
-                        Console.WriteLine("Fordbidden Pairing found.");
+                        Console.WriteLine("Fordbidden Pairing found: " + forbiddenPairsFoundInARow.ToString());
                         forbiddenPairsFoundInARow++;
+                        if (forbiddenPairsFoundInARow >= MAXFORBIDDENPAIRSINAROW)
+                        {
+                            Console.WriteLine("Fix manually");
+                            machinesToChange = findNextPairingNotInTabulist(recentlySolvedTL, optimallySolvedTL);
+                            nrOfMachinesToSolve = machinesToChange.Count;
+                        }
+                        else
+                            continue;
+                    }
+                    else
+                    {
+                        forbiddenPairsFoundInARow = 0;
+                        SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
+                        (schedules[singleMachineIdx], isOptimal) = sm.solveModel(timeForSolver, cost.tardinessPerMachine[singleMachineIdx]);
+                        cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
+
+                        if (cost.tardiness != tardinessBefore || cost.makeSpan != makespanBefore)
+                        {
+                            recentlySolvedTL.removePairings(new List<int> { singleMachineIdx });
+                            optimallySolvedTL.removePairings(new List<int> { singleMachineIdx });
+                            WeightedItem<int>.adaptWeight(ref choices, choice, weightChangeIfSolutionIsGood);
+                        }
+                        else
+                        {
+                            timeRemainingInMS += millisecondsAddedPerFailedImprovement;
+                            WeightedItem<int>.adaptWeight(ref choices, choice, weightChangeIfSolutionIsBadAndOptimal);
+                        }
+
+                        recentlySolvedTL.addPairing(singleMachineIdx);
+                        if (isOptimal)
+                            optimallySolvedTL.addPairing(singleMachineIdx);
                         continue;
                     }
-                    else
-                        forbiddenPairsFoundInARow = 0;
-                    SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
-                    (schedules[singleMachineIdx], isOptimal) = sm.solveModel(timeForSolver, cost.tardinessPerMachine[singleMachineIdx]);
-                    cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
-
-                    if (cost.tardiness != tardinessBefore || cost.makeSpan != makespanBefore)
-                    {
-                        recentlySolvedTL.removePairings(new List<int> { singleMachineIdx });
-                        optimallySolvedTL.removePairings(new List<int> { singleMachineIdx });
-                        WeightedItem<int>.adaptWeight(ref choices, choice, weightChangeIfSolutionIsGood);
-                    }
-                    else
-                    {
-                        timeRemainingInMS += millisecondsAddedPerFailedImprovement;
-                        WeightedItem<int>.adaptWeight(ref choices, choice, weightChangeIfSolutionIsBadAndOptimal);
-                    }
-
-                    recentlySolvedTL.addPairing(singleMachineIdx);
-                    if (isOptimal)
-                        optimallySolvedTL.addPairing(singleMachineIdx);
-                    continue;
                 }
                 else
                     nrOfMachinesToSolve = choice;
 
-                List<int> machinesToChange = machineSelector.selectMachines(nrOfMachinesToSolve);
+                if (machinesToChange == null)
+                    machinesToChange = machineSelector.selectMachines(nrOfMachinesToSolve);
 
   
 
                 if (!recentlySolvedTL.isNotATabuPairing(machinesToChange))
                 {
-                    Console.WriteLine("Fordbidden Pairing found.");
+                    Console.WriteLine("Fordbidden Pairing found: " + forbiddenPairsFoundInARow.ToString());
                     forbiddenPairsFoundInARow++;
                     if (forbiddenPairsFoundInARow >= MAXFORBIDDENPAIRSINAROW)
                     {
+                        Console.WriteLine("Fix manually");
                         machinesToChange = findNextPairingNotInTabulist(recentlySolvedTL, optimallySolvedTL);
                         forbiddenPairsFoundInARow = 0;
                     }
