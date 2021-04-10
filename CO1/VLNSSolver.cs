@@ -255,7 +255,7 @@ namespace CO1
                         forbiddenPairsFoundInARow++;
                         if (forbiddenPairsFoundInARow >= MAXFORBIDDENPAIRSINAROW)
                         {
-                            Console.WriteLine("Fix manually");
+                            Console.WriteLine("Fix manually (sm)");
                             machinesToChange = findNextPairingNotInTabulist(recentlySolvedTL, optimallySolvedTL);
                             nrOfMachinesToSolve = machinesToChange.Count;
                         }
@@ -264,6 +264,7 @@ namespace CO1
                     }
                     else
                     {
+                        Console.WriteLine("Singlemachine: " + singleMachineIdx.ToString() + ", time: " + timeForSolver.ToString());
                         forbiddenPairsFoundInARow = 0;
                         SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
                         (schedules[singleMachineIdx], isOptimal) = sm.solveModel(timeForSolver, cost.tardinessPerMachine[singleMachineIdx]);
@@ -301,7 +302,7 @@ namespace CO1
                     forbiddenPairsFoundInARow++;
                     if (forbiddenPairsFoundInARow >= MAXFORBIDDENPAIRSINAROW)
                     {
-                        Console.WriteLine("Fix manually");
+                        Console.WriteLine("Fix manually (mm)");
                         machinesToChange = findNextPairingNotInTabulist(recentlySolvedTL, optimallySolvedTL);
                         forbiddenPairsFoundInARow = 0;
                     }
@@ -311,9 +312,9 @@ namespace CO1
                 else
                     forbiddenPairsFoundInARow = 0;
 
-                
 
 
+                Console.WriteLine("Calc #jobs");
                 long tardinessBeforeForMachingesToChange = 0;
                 int nrOfJobs = 0;
                 foreach (int m in machinesToChange)
@@ -321,6 +322,8 @@ namespace CO1
                     tardinessBeforeForMachingesToChange += cost.tardinessPerMachine[m];
                     nrOfJobs += schedules[m].Count;
                 }
+
+                Console.WriteLine("Calc jobs to freeze");
 
                 List<Tuple<int, int, int>> jobsToFreeze = new List<Tuple<int, int, int>>(); // (Job1Id, Job2Id, Machine) 
                 if (nrOfJobs >= minNrOfJobsToFreeze && rnd.NextDouble() < probability_freezing)
@@ -348,6 +351,7 @@ namespace CO1
                         machinesToChange.Add(i);
                 }
 
+                Console.WriteLine("Start mm");
                 MultiMachineModel tm = new MultiMachineModel(problem, env, schedules, machinesToChange, jobsToFreeze);
 
                 (schedules, isOptimal) = tm.solveModel(timeForSolver, tardinessBeforeForMachingesToChange, !(rnd.NextDouble() < probabilityOptimizeMakespan));
@@ -424,9 +428,10 @@ namespace CO1
 
                         List<int> newList = new List<int>(allElementsOffCurLength[i]);
                         newList.Add(elem);
-                        allElementsOffCurLength.Add(newList);
+                        allElementsOffCurLengthNew.Add(newList);
                     }
                 }
+                allElementsOffCurLength = allElementsOffCurLengthNew;
             }
             return null;
         }
