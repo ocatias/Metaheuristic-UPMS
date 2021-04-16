@@ -78,7 +78,7 @@ namespace CO1
             {
                 Console.WriteLine("HybridSolver");
                 SimulatedAnnealingSolver saSolver = new SimulatedAnnealingSolver(problem);
-                int saSolverRuntime = 0;
+                int saSolverRuntime;
                 if (60 < runtimeInSeconds / 2)
                     saSolverRuntime = 60;
                 else
@@ -115,6 +115,7 @@ namespace CO1
                 outputFile.WriteLine(String.Format("Tardiness: {0}", cost.tardiness));
                 outputFile.WriteLine(String.Format("Makespan: {0}", cost.makeSpan));
                 outputFile.WriteLine(String.Format("Selected runtime: {0}s", runtimeInSeconds));
+                Console.WriteLine(DateTime.UtcNow.Subtract(startTime).TotalSeconds);
                 outputFile.WriteLine(String.Format("Actual runtime: {0}s", DateTime.UtcNow.Subtract(startTime).TotalSeconds));
                 if (isSolvedOptimally)
                     outputFile.WriteLine("Solution proven to be optimal");
@@ -193,14 +194,14 @@ namespace CO1
             int forbiddenPairsFoundInARow = 0;
             const int MAXFORBIDDENPAIRSINAROW = 5;
 
-            while (DateTime.UtcNow.Subtract(startTime).TotalMilliseconds < timeRemainingInMS)
+            while (DateTime.UtcNow.Subtract(startTime).TotalMilliseconds < runtimeInSeconds*1000)
             {
-                if (!optimallySolvedTL.isNotATabuPairing(allMachines))
-                {
-                    Console.WriteLine("SOLVED OPTIMALLY");
-                    isSolvedOptimally = true;
-                    break;
-                }
+                //if (!optimallySolvedTL.isNotATabuPairing(allMachines))
+                //{
+                //    Console.WriteLine("SOLVED OPTIMALLY");
+                //    isSolvedOptimally = true;
+                //    break;
+                //}
 
                 Console.WriteLine(String.Format("Current solution: ({0},{1})", cost.tardiness, cost.makeSpan));         
 
@@ -257,6 +258,12 @@ namespace CO1
                         {
                             Console.WriteLine("Fix manually (sm)");
                             machinesToChange = findNextPairingNotInTabulist(recentlySolvedTL, optimallySolvedTL);
+                            if (machinesToChange == null)
+                            {
+                                machinesToChange = new List<int>();
+                                for (int i = 0; i < problem.machines; i++)
+                                    machinesToChange.Append(i);
+                            }
                             nrOfMachinesToSolve = machinesToChange.Count;
                         }
                         else
@@ -317,6 +324,14 @@ namespace CO1
                 Console.WriteLine("Calc #jobs");
                 long tardinessBeforeForMachingesToChange = 0;
                 int nrOfJobs = 0;
+
+                if (machinesToChange == null)
+                {
+                    machinesToChange = new List<int>();
+                    for (int i = 0; i < problem.machines; i++)
+                        machinesToChange.Append(i);
+                }
+
                 foreach (int m in machinesToChange)
                 {
                     tardinessBeforeForMachingesToChange += cost.tardinessPerMachine[m];
@@ -390,12 +405,12 @@ namespace CO1
 
                 //cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
 
-                if (!optimallySolvedTL.isNotATabuPairing(allMachines))
-                {
-                    Console.WriteLine("SOLVED OPTIMALLY");
-                    isSolvedOptimally = true;
-                    break;
-                }
+                //if (!optimallySolvedTL.isNotATabuPairing(allMachines))
+                //{
+                //    Console.WriteLine("SOLVED OPTIMALLY");
+                //    isSolvedOptimally = true;
+                //    break;
+                //}
             }
 
             Console.WriteLine(String.Format("{0}, tabu pairings found", recentlySolvedTL.nrOfTabuPairingsFound()));
