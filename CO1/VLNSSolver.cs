@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace CO1
 {
@@ -16,6 +18,8 @@ namespace CO1
         private bool isSolvedOptimally = false;
         private TabuList optimallySolvedTL;
 
+        private List<int>[] schedules;
+
         private SolutionCost cost;
         private DateTime startTime;
 
@@ -23,6 +27,14 @@ namespace CO1
         float iter_baseValue, iter_dependencyOnJobs, iter_dependencyOnMachines, probability_freezing;
         long weightOneOpti, weightThreeOpti, weightForAllOptionsAbove3InTotal, weightChangeIfSolutionIsGood;
         long weightTwoOpti = 20000;
+
+        bool isParallel = false;
+        int max_threads = 6;
+        int max_non_gurobi_threads = 2;
+
+        List<SimulatedAnnealingSolver> saSolvers = new List<SimulatedAnnealingSolver>();
+        List<CancellationTokenSource> sources = new List<CancellationTokenSource>();
+        List<Task> tasks = new List<Task>();
 
         // How many jobs from firstList are tardy and can be put on the machine from secondList
         private List<List<ScheduleForDifferentMachineInfo>> scheduleInfo = new List<List<ScheduleForDifferentMachineInfo>>();
@@ -58,12 +70,81 @@ namespace CO1
             this.minNrOfJobsToFreeze = minNrOfJobsToFreeze;
         }
 
-
-
         public List<int>[] solveDirect(int runtimeInSeconds, bool isHybridSolver = false)
+        {
+            return solveDirectAsync(runtimeInSeconds, isHybridSolver).GetAwaiter().GetResult();
+        }
+
+        private Tuple<SolutionCost, int> get_best_from_SAS(List<SimulatedAnnealingSolver> saSolvers, bool onlyCheck_max_non_gurboi_threads = false)
+        {
+            SolutionCost best_cost = saSolvers[0].lowestCost;
+            int best_solver_idx = 0;
+            int nr_solvers_to_check = saSolvers.Count;
+            if (onlyCheck_max_non_gurboi_threads)
+                nr_solvers_to_check = max_non_gurobi_threads;
+
+            for (int i = 1; i < nr_solvers_to_check; i++)
+            { 
+                if(saSolvers[i].cost.isBetterThan(best_cost))
+                {
+                    best_cost = saSolvers[i].lowestCost;
+                    best_solver_idx = i;
+                }
+            }
+            return new Tuple<SolutionCost, int>(best_cost, best_solver_idx);
+        }
+
+        // Updates only the first max_non_gurobi_threads threads
+        private void update_SAS(List<SimulatedAnnealingSolver> saSolvers, SolutionCost best_cost, List<int>[] best_schedule)
+        {
+            for(int i = 0; i < max_non_gurobi_threads; i++)
+            {
+                saSolvers[i].update(best_cost, best_schedule);
+            }
+        }
+
+        private Tuple<List<Task>, List<CancellationTokenSource>> run_sasolvers(List<SimulatedAnnealingSolver> saSolvers, bool only_run_max_non_gurboi_threads = false)
+        {
+            var tasks = new List<Task>();
+            var sources = new List<CancellationTokenSource>();
+
+            int nr_threads = max_threads;
+            if (only_run_max_non_gurboi_threads)
+                nr_threads = max_non_gurobi_threads;
+
+            for (int i = 0; i < 2; i++)
+            {
+                
+                var source = new CancellationTokenSource();
+                var token = source.Token;
+                var solver = saSolvers[i];
+                tasks.Add(Task.Run(() =>
+                { 
+                    while (!token.IsCancellationRequested)
+                    {
+                        for (int iteration = 0; iteration < 100; iteration++)
+                            solver.single_iteration();
+                    } }));
+                sources.Add(source);
+            }
+            return new Tuple<List<Task>, List<CancellationTokenSource>>(tasks, sources);
+        }
+
+        private async void cancel_tasks_and_wait(List<Task> tasks, List<CancellationTokenSource> sources)
+        {
+            foreach (CancellationTokenSource source in sources)
+                source.Cancel();
+
+            await Task.WhenAll(tasks);
+        }
+
+        public async Task<List<int>[]> solveDirectAsync(int runtimeInSeconds, bool isHybridSolver = false)
         {
             startTime = DateTime.UtcNow;
 
+            saSolvers = new List<SimulatedAnnealingSolver>();
+            sources = new List<CancellationTokenSource>();
+            tasks = new List<Task>();
 
             // Create an empty environment, set options and start
             GRBEnv env = new GRBEnv(true);
@@ -77,14 +158,45 @@ namespace CO1
             else
             {
                 Console.WriteLine("HybridSolver");
-                SimulatedAnnealingSolver saSolver = new SimulatedAnnealingSolver(problem);
+
                 int saSolverRuntime;
                 if (60 < runtimeInSeconds / 2)
                     saSolverRuntime = 60;
                 else
                     saSolverRuntime = (int)(runtimeInSeconds * 0.5);
 
-                schedules = saSolver.solveDirect(saSolverRuntime);
+                if (!isParallel)
+                {
+                    SimulatedAnnealingSolver saSolver = new SimulatedAnnealingSolver(problem);
+                    schedules = saSolver.solveDirect(saSolverRuntime);
+                }
+                else
+                {
+                    saSolvers = new List<SimulatedAnnealingSolver>();
+                    for(int i = 0; i < max_threads; i++)
+                    {
+                        SimulatedAnnealingSolver solver = new SimulatedAnnealingSolver(new ProblemInstance (problem));
+                        solver.seed = i;
+                        saSolvers.Add(solver);
+                    }
+                    var tasks = new List<Task>();
+
+                    for (int i = 0; i < max_threads; i++)
+                    {
+                        SimulatedAnnealingSolver solver = saSolvers[i];
+                        tasks.Add(Task.Run(() => solver.solveDirect(saSolverRuntime)));
+                    }
+                    await Task.WhenAll(tasks);
+                    var tuple = get_best_from_SAS(saSolvers);
+                    update_SAS(saSolvers, tuple.Item1, saSolvers[tuple.Item2].schedules);
+                    foreach (SimulatedAnnealingSolver solver in saSolvers)
+                        Console.WriteLine(solver.seed.ToString() + ": " + solver.cost.tardiness.ToString() + ", " + solver.cost.makeSpan.ToString());
+                    schedules = Helpers.cloneSchedule(saSolvers[0].bestSchedules);
+
+                    (tasks, sources) = run_sasolvers(saSolvers, true);
+                }
+
+                
             }
 
             cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
@@ -106,9 +218,30 @@ namespace CO1
             return schedules;
         }
 
+        private void update_parallel_solutions(bool run_solvers_again = true)
+        {
+            if (isParallel)
+            {
+                cancel_tasks_and_wait(tasks, sources);
+                (SolutionCost cost_from_solver, int best_solver_idx) = get_best_from_SAS(saSolvers, true);
+                if (cost_from_solver.isBetterThan(cost))
+                {
+                    schedules = Helpers.cloneSchedule(saSolvers[best_solver_idx].bestSchedules);
+                    cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
+                    update_SAS(saSolvers, cost_from_solver, saSolvers[best_solver_idx].bestSchedules);
+                }
+                else
+                {
+                    update_SAS(saSolvers, cost, schedules);
+                }
+                if(run_solvers_again)
+                    (tasks, sources) = run_sasolvers(saSolvers);
+            }
+        }
+
         public void solve(int runtimeInSeconds, string filepathResultInfo, string filepathMachineSchedule, bool isHybridSolver = false)
         {
-            List<int>[] schedules = solveDirect(runtimeInSeconds, isHybridSolver);
+            schedules = solveDirect(runtimeInSeconds, isHybridSolver);
 
             using (StreamWriter outputFile = new StreamWriter(filepathResultInfo))
             {
@@ -171,12 +304,15 @@ namespace CO1
                 if (timeToUse > timeRemainingInMS)
                     timeToUse = timeRemainingInMS;
                 (schedules[singleMachineIdx], isOptimal) = sm.solveModel((int)(timeToUse), cost.tardinessPerMachine[singleMachineIdx]);
+
                 recentlySolvedTL.addPairing(singleMachineIdx);
                 if (isOptimal)
                     optimallySolvedTL.addPairing(singleMachineIdx);
             }
 
             cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
+
+            
 
             MachineToOptimizeHeuristic machineSelector1 = new SelectByTardiness();
             MachineToOptimizeHeuristic machineSelector2 = new SelectByFindingBigProblems();
@@ -288,7 +424,7 @@ namespace CO1
                             timeRemainingInMS += millisecondsAddedPerFailedImprovement;
                             WeightedItem<int>.adaptWeight(ref choices, choice, weightChangeIfSolutionIsBadAndOptimal);
                         }
-
+                        update_parallel_solutions();
                         recentlySolvedTL.addPairing(singleMachineIdx);
                         if (isOptimal)
                             optimallySolvedTL.addPairing(singleMachineIdx);
@@ -380,6 +516,8 @@ namespace CO1
                 cost.updateTardiness();
                 cost.updateMakeSpan();
 
+                update_parallel_solutions();
+
                 if (cost.tardiness != tardinessBefore || cost.makeSpan != makespanBefore)
                 {
                     recentlySolvedTL.removePairings(machinesToChange);
@@ -412,7 +550,7 @@ namespace CO1
                 //    break;
                 //}
             }
-
+            update_parallel_solutions(false);
             Console.WriteLine(String.Format("{0}, tabu pairings found", recentlySolvedTL.nrOfTabuPairingsFound()));
         }
 
