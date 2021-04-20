@@ -34,13 +34,13 @@ namespace VLNSSolverCLI
             List<int>[] schedule;
 
             if (!produceFiles)
-                schedule = solver.solveDirect(runtime);
+                schedule = solver.solveDirect(runtime, true);
             else
             {
                 string file = pathToInstance.Split(Path.DirectorySeparatorChar).Last();
                 string pathToStoreResults = args[13];
                 (string fpInfo, string fpSchedule) = getFilepaths(file.Split('.')[0], pathToStoreResults);
-                solver.solve(runtime, fpInfo, fpSchedule);
+                solver.solve(runtime, fpInfo, fpSchedule, true);
                 return;
             }
             

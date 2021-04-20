@@ -2,7 +2,7 @@
   "profiles": {
     "VLNSSolverCLI": {
       "commandName": "Project",
-      "commandLineArgs": "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation\\s_4-16-20_1.max 20 true 2000 25 0 0 12000 8000 1000 100 90 0.8 C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\"
+      "commandLineArgs": "C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\Data\\instances\\validation\\s_4-16-20_1.max 180 true 2000 25 0 0 12000 8000 1000 100 90 0.8 C:\\Users\\Fabian\\Desktop\\Informatik\\CO\\"
     }
   }
 }
