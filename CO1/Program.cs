@@ -25,9 +25,11 @@ namespace CO1
             //    "p_22-140-140_1.max", "p_29-140-140_1.max", "p_7-19-40_1.max", "s_10-120-180_1.max",  "s_15-80-80_2.max", "s_15-80-80_3.max",
             //    "s_22-149-160_1.max", "s_4-16-20_1.max", "t_10-24-40_1.max", "t_15-77-80_1.max", "t_18-56-100_1.max", "t_20-76-100_1.max", "t_28-34-100_1.max"};
 
-            //List<string> allFilesInDirectory = new List<string>() { "p_1-364-580_1.max", "t_18-56-100_1.max", "s_22-149-160_1.max" };
-            List<string> allFilesInDirectory = new List<string>() { "p_2-760-760_2.max", "p_1-829-860_1.max", "p_4-620-620_1.max" };
-            
+            //List<string> allFilesInDirectory = new List<string>() { "p_2-760-760_2.max", "p_1-829-860_1.max", "p_4-620-620_1.max" };
+            List<string> allFilesInDirectory = new List<string>() { "p_30-332-340_1.max", "p_7-431-480_1.max", "t_2-490-800_1.max" };
+
+
+
             //allFilesInDirectory = allFilesInDirectory.OrderBy(x => Guid.NewGuid()).ToList();
 
             //runVLNS(60, 1, pathValidation, allFilesInDirectory, "2503_VLNS_60s");
@@ -37,7 +39,7 @@ namespace CO1
 
             //runLinearModels("MIP_30Min_each");
 
-            runHybridSolver(180, 1, pathValidation, allFilesInDirectory, "2004_hybr_seq");
+            runHybridSolver(180, 1, pathValidation, allFilesInDirectory, "2004_hybr_para_3");
             //runSimulatedAnnealing(180, 1, pathValidation, allFilesInDirectory, "2004_SA_baseline");
 
         }

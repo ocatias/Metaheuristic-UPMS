@@ -18,7 +18,7 @@ namespace CO1
         private bool isSolvedOptimally = false;
         private TabuList optimallySolvedTL;
 
-        private List<int>[] schedules;
+        public List<int>[] schedules;
 
         private SolutionCost cost;
         private DateTime startTime;
@@ -28,9 +28,12 @@ namespace CO1
         long weightOneOpti, weightThreeOpti, weightForAllOptionsAbove3InTotal, weightChangeIfSolutionIsGood;
         long weightTwoOpti = 20000;
 
-        bool isParallel = false;
+        bool isParallel = true;
         int max_threads = 6;
         int max_non_gurobi_threads = 2;
+        int times_gurobi_is_better = 0;
+        int times_sa_is_better = 0;
+        int ties = 0;
 
         List<SimulatedAnnealingSolver> saSolvers = new List<SimulatedAnnealingSolver>();
         List<CancellationTokenSource> sources = new List<CancellationTokenSource>();
@@ -152,7 +155,6 @@ namespace CO1
 
             Random rnd = new Random();
 
-            List<int>[] schedules;
             if (!isHybridSolver)
                 schedules = Heuristics.createInitialSchedules(problem);
             else
@@ -226,15 +228,27 @@ namespace CO1
                 (SolutionCost cost_from_solver, int best_solver_idx) = get_best_from_SAS(saSolvers, true);
                 if (cost_from_solver.isBetterThan(cost))
                 {
+                    Console.WriteLine("SA beats Gurobi");
+                    times_sa_is_better++;
+                    
                     schedules = Helpers.cloneSchedule(saSolvers[best_solver_idx].bestSchedules);
                     cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
                     update_SAS(saSolvers, cost_from_solver, saSolvers[best_solver_idx].bestSchedules);
                 }
-                else
+                else if (cost.isBetterThan(cost_from_solver))
                 {
+                    Console.WriteLine("Gurobi beats SA");
+                    times_gurobi_is_better++;
                     update_SAS(saSolvers, cost, schedules);
                 }
-                if(run_solvers_again)
+                else
+                {
+                    Console.WriteLine("Tie");
+                    ties++;
+                    update_SAS(saSolvers, cost, schedules);
+
+                }
+                if (run_solvers_again)
                     (tasks, sources) = run_sasolvers(saSolvers);
             }
         }
@@ -253,7 +267,14 @@ namespace CO1
                 if (isSolvedOptimally)
                     outputFile.WriteLine("Solution proven to be optimal");
                 outputFile.Write(String.Format("Optimally solved pairings:\n{0}", optimallySolvedTL.outputTabulist()));
+                if(isParallel)
+                {
+                    outputFile.WriteLine(String.Format("Gurobi wins: {0}", times_gurobi_is_better.ToString()));
+                    outputFile.WriteLine(String.Format("SA wins: {0}", times_sa_is_better.ToString()));
+                    outputFile.WriteLine(String.Format("Ties: {0}", ties.ToString()));
 
+
+                }
             }
 
             ResultExport.storeMachineSchedule(filepathMachineSchedule, problem, schedules);
