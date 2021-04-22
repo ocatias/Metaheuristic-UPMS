@@ -39,7 +39,7 @@ namespace CO1
 
             //runLinearModels("MIP_30Min_each");
 
-            runHybridSolver(180, 1, pathValidation, allFilesInDirectory, "2004_hybr_para_3");
+            runHybridSolver(20, 1, pathValidation, allFilesInDirectory, "2204_hybr_para_3");
             //runSimulatedAnnealing(180, 1, pathValidation, allFilesInDirectory, "2004_SA_baseline");
 
         }

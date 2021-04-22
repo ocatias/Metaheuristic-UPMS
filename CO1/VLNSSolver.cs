@@ -106,16 +106,12 @@ namespace CO1
             }
         }
 
-        private Tuple<List<Task>, List<CancellationTokenSource>> run_sasolvers(List<SimulatedAnnealingSolver> saSolvers, bool only_run_max_non_gurboi_threads = false)
+        private Tuple<List<Task>, List<CancellationTokenSource>> run_sasolvers(List<SimulatedAnnealingSolver> saSolvers)
         {
             var tasks = new List<Task>();
             var sources = new List<CancellationTokenSource>();
 
-            int nr_threads = max_threads;
-            if (only_run_max_non_gurboi_threads)
-                nr_threads = max_non_gurobi_threads;
-
-            for (int i = 0; i < 2; i++)
+            for (int i = 0; i < max_non_gurobi_threads; i++)
             {
                 
                 var source = new CancellationTokenSource();
@@ -139,6 +135,33 @@ namespace CO1
                 source.Cancel();
 
             await Task.WhenAll(tasks);
+        }
+
+        private List<int> get_machines_that_changed(List<int>[] machines_before, List<int>[] machines_after)
+        {
+            List<int> machines_that_changed = new List<int>();
+            for(int m = 0; m < problem.machines; m++)
+            {
+                bool equal = true;
+                if (machines_before[m].Count() != machines_after[m].Count())
+                    equal = false;
+                else
+                {
+                    for(int i = 0; i < machines_before[m].Count(); i++)
+                    {
+                        if(machines_before[m][i] != machines_after[m][i])
+                        {
+                            equal = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (!equal)
+                    machines_that_changed.Add(m);
+            }
+
+            return machines_that_changed;
         }
 
         public async Task<List<int>[]> solveDirectAsync(int runtimeInSeconds, bool isHybridSolver = false)
@@ -195,7 +218,7 @@ namespace CO1
                         Console.WriteLine(solver.seed.ToString() + ": " + solver.cost.tardiness.ToString() + ", " + solver.cost.makeSpan.ToString());
                     schedules = Helpers.cloneSchedule(saSolvers[0].bestSchedules);
 
-                    (tasks, sources) = run_sasolvers(saSolvers, true);
+                    (tasks, sources) = run_sasolvers(saSolvers);
                 }
 
                 
@@ -220,8 +243,12 @@ namespace CO1
             return schedules;
         }
 
-        private void update_parallel_solutions(bool run_solvers_again = true)
+        // Returns (isSolutionFromGurobi, machines changed)
+        private Tuple<bool, List<int>> update_parallel_solutions(List<int> machines_gurobi_changed, bool run_solvers_again = true)
         {
+            List<int> machines_changed = new List<int>();
+            bool is_solution_from_gurobi = true;
+
             if (isParallel)
             {
                 cancel_tasks_and_wait(tasks, sources);
@@ -230,7 +257,9 @@ namespace CO1
                 {
                     Console.WriteLine("SA beats Gurobi");
                     times_sa_is_better++;
-                    
+                    is_solution_from_gurobi = false;
+
+                    machines_changed = get_machines_that_changed(schedules, saSolvers[best_solver_idx].bestSchedules);
                     schedules = Helpers.cloneSchedule(saSolvers[best_solver_idx].bestSchedules);
                     cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
                     update_SAS(saSolvers, cost_from_solver, saSolvers[best_solver_idx].bestSchedules);
@@ -240,17 +269,21 @@ namespace CO1
                     Console.WriteLine("Gurobi beats SA");
                     times_gurobi_is_better++;
                     update_SAS(saSolvers, cost, schedules);
+                    machines_changed = machines_gurobi_changed;
                 }
                 else
                 {
                     Console.WriteLine("Tie");
                     ties++;
                     update_SAS(saSolvers, cost, schedules);
+                    machines_changed = machines_gurobi_changed;
+
 
                 }
                 if (run_solvers_again)
                     (tasks, sources) = run_sasolvers(saSolvers);
             }
+            return new Tuple<bool, List<int>>(is_solution_from_gurobi, machines_changed);
         }
 
         public void solve(int runtimeInSeconds, string filepathResultInfo, string filepathMachineSchedule, bool isHybridSolver = false)
@@ -433,6 +466,7 @@ namespace CO1
                         SingleMachineModel sm = new SingleMachineModel(problem, env, schedules[singleMachineIdx], singleMachineIdx);
                         (schedules[singleMachineIdx], isOptimal) = sm.solveModel(timeForSolver, cost.tardinessPerMachine[singleMachineIdx]);
                         cost = Verifier.calcSolutionCostFromAssignment(problem, schedules);
+                        machinesToChange = new List<int>{ singleMachineIdx };
 
                         if (cost.tardiness != tardinessBefore || cost.makeSpan != makespanBefore)
                         {
@@ -445,10 +479,13 @@ namespace CO1
                             timeRemainingInMS += millisecondsAddedPerFailedImprovement;
                             WeightedItem<int>.adaptWeight(ref choices, choice, weightChangeIfSolutionIsBadAndOptimal);
                         }
-                        update_parallel_solutions();
-                        recentlySolvedTL.addPairing(singleMachineIdx);
-                        if (isOptimal)
-                            optimallySolvedTL.addPairing(singleMachineIdx);
+                        bool solution_from_gurobi2 = true;
+                        if (isParallel)
+                            (solution_from_gurobi2, machinesToChange) = update_parallel_solutions(machinesToChange);
+
+                        recentlySolvedTL.addPairing(machinesToChange);
+                        if (isOptimal && solution_from_gurobi2)
+                            optimallySolvedTL.addPairing(machinesToChange);
                         continue;
                     }
                 }
@@ -536,8 +573,10 @@ namespace CO1
                 }
                 cost.updateTardiness();
                 cost.updateMakeSpan();
+                bool solution_from_gurobi = true;
 
-                update_parallel_solutions();
+                if (isParallel)
+                    (solution_from_gurobi, machinesToChange) = update_parallel_solutions(machinesToChange);
 
                 if (cost.tardiness != tardinessBefore || cost.makeSpan != makespanBefore)
                 {
@@ -556,7 +595,7 @@ namespace CO1
                 {
                     recentlySolvedTL.addPairing(machinesToChange);
 
-                    if (isOptimal)
+                    if (isOptimal && solution_from_gurobi)
                         optimallySolvedTL.addPairing(machinesToChange);
                 }
 
@@ -571,7 +610,7 @@ namespace CO1
                 //    break;
                 //}
             }
-            update_parallel_solutions(false);
+            update_parallel_solutions(null, false);
             Console.WriteLine(String.Format("{0}, tabu pairings found", recentlySolvedTL.nrOfTabuPairingsFound()));
         }
 
