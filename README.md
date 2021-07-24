@@ -5,7 +5,7 @@ This problem is formulated very generally and allows us to model many situations
 
 I build on the work of [Moser](https://repositum.tuwien.at/handle/20.500.12708/11486) and implement one of their mixed integer programming (MIP) models and their simulated annealing solver (SA). Furthermore, I develop three very large neighborhood solvers to combine the strengths MIP and SA. This repository contains the following algorithms that solve the _Unrelated Parallel Machine Scheduling problem_:
 * **Mixed Integer Programing** (MIP): Use Gurobi and Google OR-Tools to solve a mixed integer program. It can compute schedules and prove that they are optimal. This method can make use of multiple CPUs, it is very slow and only provides good solutions for very small problem instances.
-* **Simulated Annealing**(SA): Generates a schedule via a simple heuristic and then improves it by generating neighboring solutions. This heuristic runs on a single core and is both very fast and capable of creating very good solutions for even large instances.
+* **Simulated Annealing** (SA): Generates a schedule via a simple heuristic and then improves it by generating neighboring solutions. This heuristic runs on a single core and is both very fast and capable of creating very good solutions for even large instances.
 * **Very Large Neighborhood Search** (VLNS): After creating an initial schedule via a simple heuristic it solves mixed integer programs with Gurobi to improve the schedules of subsets of machines. This algorithm can use many CPUs and is generally slow and unable to provide good solutions.
 * **Hybrid Very Large Neighborhood Search** (H-VLNS): Works like VLNS, but uses SA to generate the initial schedule.  This algorithm can use many CPUs and is significantly better than VLNS but still worse than SA.
 * **Parallel Very Large Neighborhood Search** (P-VLNS): Runs eight SA solvers in parallel to create an initial solution. Then improves this solution by running two VLNS solvers and a SA solver in parallel, these solvers update each other everytime the VLNS solver have solved on subproblem. Works on multiple CPUs and is very fast and able to provide the best solutions.
@@ -24,7 +24,7 @@ I tuned the parameters with [SMAC](https://automl.github.io/SMAC3/master/) on th
 <img src="/Pictures/box_VLNS.png" alt="Results" width="400">
 This figure compares that tardiness of schedules obtained from SA, VLNS and H-VLNS. We can see that H-VLNS produces schedules that are orders of magnitudes worse than the solutions from SA and H-VLNS.
 
-The following table compares the median and mean tardiness of the different algorithms. We can see that Moser's SA implementation achives an excellent median tardiness.
+The following table compares the median and mean tardiness of the different algorithms. We can see that Moser's SA implementation achives an excellent median tardiness.  Interestingly P-VLNS 30min achieves a significantly lower mean tardiness than any other algorithm.
 
 | Algorithm   | Median Tardiness | Mean Tardiness |
 |-------------|------------------|----------------|
@@ -41,7 +41,7 @@ The following table compares the median and mean tardiness of the different algo
 
 <img src="/Pictures/box_all.png" alt="Results" width="800">
 This figure compares the tardiness of schedules obtained by all of my algorithms for different runtimes. The runtime of "1* min" for SA means, that this runtime is comparable to Moser's 1 min runtime for their SA implementation. As they used a faster computer I had to run my algorithm for slightly longer to make a fair comparison, this means 1* min corresponds to 80 seconds of wallclock time.
-Observe that my SA implementation achieves very similar results to Moser's at a runtime of one minute. Interestingly, my SA algorithm achives *worse* results at a higher runtime. This is most likely because I tuned the parameters for the different runtimes separately and did not let tuned them for long enough, leading to suboptimal parameters. 
+Observe that my SA implementation achieves very similar results to Moser's at a runtime of one minute. Interestingly, my SA algorithm achives **worse** results at a higher runtime. This is most likely because I tuned the parameters for the different runtimes separately and did not let tuned them for long enough, leading to suboptimal parameters. 
 We can see that H-VLNS achieves worse results than SA and that P-VLNS achieves better results than my SA implementation. 
 
 We can also evaluate which of the algorithms provide the best solutions to how many test instances:
