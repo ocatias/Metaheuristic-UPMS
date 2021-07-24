@@ -58,10 +58,6 @@ We can also evaluate which of the algorithms provide the best solutions to how m
 | SA 30 min                  | 78 (65.0\%)                                 | 91 (75.8\%) |
 | **All my algorithms combined** | 98 (81.7\%)                                 | 98 (81.7\%) |
 
-## Other Results
-<img src="/Pictures/algo_results.png" alt="Results" width="400">
-<img src="/Pictures/algo_results2.png" alt="Results" width="600">
-
 ## Used Technologies
 - C#
 - Gurobi (9.1.1)
